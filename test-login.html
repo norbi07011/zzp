@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Logowania - ZZP Werkplaats</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background: #0ea5e9;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0284c7;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #166534;
+        }
+        .error {
+            background: #fee2e2;
+            border: 1px solid #fca5a5;
+            color: #991b1b;
+        }
+        .info {
+            background: #dbeafe;
+            border: 1px solid #93c5fd;
+            color: #1e40af;
+        }
+        pre {
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Test Logowania - ZZP Werkplaats</h1>
+
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="admin@zzpwerkplaats.nl" placeholder="admin@zzpwerkplaats.nl">
+        </div>
+
+        <div class="form-group">
+            <label for="password">Hasło:</label>
+            <input type="password" id="password" value="Admin123!@#" placeholder="Admin123!@#">
+        </div>
+
+        <button onclick="testLogin()">🔐 Test Logowania</button>
+        <button onclick="checkUser()">👤 Sprawdź Użytkownika</button>
+        <button onclick="checkProfile()">📋 Sprawdź Profil</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Konfiguracja Supabase
+        const SUPABASE_URL = 'https://fldquchnitwsybkhrnns.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZsZHF1Y2huaXR3c3lia2hybm5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA2NTcwNTAsImV4cCI6MjA3NjIzMzA1MH0.Qi17A8_aGsimzVix3fOZNZEuF1KjHm4XAIiK4ZuoxQ8';
+
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function showResult(message, type = 'info', data = null) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = type;
+            resultDiv.style.display = 'block';
+
+            let html = `<strong>${message}</strong>`;
+            if (data) {
+                html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            resultDiv.innerHTML = html;
+        }
+
+        async function testLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            showResult('⏳ Próba logowania...', 'info');
+
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+
+                if (error) {
+                    showResult(`❌ Błąd logowania: ${error.message}`, 'error', { error });
+                    return;
+                }
+
+                if (data.user) {
+                    showResult('✅ Logowanie udane!', 'success', {
+                        user_id: data.user.id,
+                        email: data.user.email,
+                        confirmed: data.user.email_confirmed_at ? 'TAK' : 'NIE',
+                        role: data.user.user_metadata?.role || 'BRAK'
+                    });
+                }
+            } catch (err) {
+                showResult(`❌ Wyjątek: ${err.message}`, 'error', { error: err });
+            }
+        }
+
+        async function checkUser() {
+            const email = document.getElementById('email').value;
+            showResult('⏳ Sprawdzanie użytkownika...', 'info');
+
+            try {
+                // To nie zadziała z anon key, ale możemy sprawdzić sesję
+                const { data: { session } } = await supabase.auth.getSession();
+
+                if (session) {
+                    showResult('✅ Sesja aktywna', 'success', {
+                        user_id: session.user.id,
+                        email: session.user.email
+                    });
+                } else {
+                    showResult('ℹ️ Brak aktywnej sesji. Zaloguj się najpierw.', 'info');
+                }
+            } catch (err) {
+                showResult(`❌ Błąd: ${err.message}`, 'error');
+            }
+        }
+
+        async function checkProfile() {
+            const email = document.getElementById('email').value;
+            showResult('⏳ Sprawdzanie profilu...', 'info');
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+
+                if (!session) {
+                    showResult('ℹ️ Musisz się najpierw zalogować!', 'info');
+                    return;
+                }
+
+                const { data: profile, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (error) {
+                    showResult(`❌ Błąd pobierania profilu: ${error.message}`, 'error', { error });
+                    return;
+                }
+
+                if (profile) {
+                    showResult('✅ Profil znaleziony!', 'success', profile);
+                } else {
+                    showResult('⚠️ Profil nie istnieje!', 'error');
+                }
+            } catch (err) {
+                showResult(`❌ Błąd: ${err.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
