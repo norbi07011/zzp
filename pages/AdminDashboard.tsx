@@ -1,5 +1,5 @@
 import { useState, lazy, Suspense } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useToasts } from '../contexts/ToastContext';
 import { LoadingOverlay } from '../components/Loading';
