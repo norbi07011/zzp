@@ -1,34 +1,75 @@
-# 🚀 Quick Start - ZZP Werkplaats
+# 🚀 Quick Start - Logowanie w 2 Minuty
 
-## ⚡ Start w 3 Krokach
+## ❌ Częsty Błąd
 
-### 1. Dodaj Service Role Key
+Jeśli widzisz błąd:
+- `duplicate key value violates unique constraint "profiles_pkey"`
+- `violates foreign key constraint "profiles_id_fkey"`
 
-W pliku `.env` dodaj brakujący klucz:
+**To znaczy, że próbujesz utworzyć profil BEZ użytkownika!**
 
-```bash
-# Otwórz https://supabase.com/dashboard/project/fldquchnitwsybkhrnns/settings/api
-# Skopiuj "service_role" key i dodaj tutaj:
-SUPABASE_SERVICE_ROLE_KEY=twoj_klucz_tutaj
+---
+
+## ✅ POPRAWNA Kolejność
+
+1. **NAJPIERW:** Utwórz użytkownika w Supabase Dashboard
+2. **POTEM:** Trigger automatycznie utworzy profil
+3. **NIE:** Nie twórz profilu ręcznie przez SQL!
+
+---
+
+## Krok 1: Usuń Starego Użytkownika (jeśli istnieje)
+
+1. Otwórz: https://supabase.com/dashboard/project/fldquchnitwsybkhrnns/auth/users
+2. Znajdź `admin@zzpwerkplaats.nl`
+3. Kliknij "..." → **"Delete user"**
+4. Potwierdź
+
+## Krok 2: Utwórz Nowego Użytkownika
+
+1. **W tym samym oknie** kliknij **"Add user"**
+2. Wypełnij:
+   - Email: `admin@zzpwerkplaats.nl`
+   - Password: `Admin123!@#`
+   - ✅ **ZAZNACZ "Auto Confirm User"**
+3. Kliknij **"Create user"**
+4. **Poczekaj 2-3 sekundy** (trigger tworzy profil)
+
+## Krok 3: Sprawdź czy Profil Powstał
+
+Otwórz: https://supabase.com/dashboard/project/fldquchnitwsybkhrnns/sql/new
+
+```sql
+SELECT * FROM profiles WHERE email = 'admin@zzpwerkplaats.nl';
 ```
 
-### 2. Utwórz Konto Admina
+**Jeśli zwraca 0 wierszy**, utwórz profil:
 
-```bash
-node create-test-admin.mjs
+```sql
+-- To zadziała, bo użytkownik już istnieje w auth.users
+INSERT INTO profiles (id, email, full_name, role)
+SELECT id, email, 'Admin Test', 'admin'
+FROM auth.users
+WHERE email = 'admin@zzpwerkplaats.nl';
 ```
 
-**Dane logowania:**
-- Email: `admin@zzpwerkplaats.nl`
-- Hasło: `Admin123!@#`
+## Krok 4: Upewnij się że Role = Admin
 
-### 3. Uruchom Aplikację
-
-```bash
-npm run dev
+```sql
+UPDATE profiles
+SET role = 'admin'
+WHERE email = 'admin@zzpwerkplaats.nl';
 ```
 
-Przejdź do: http://localhost:5173/login
+## Krok 5: Zaloguj Się
+
+1. Wyczyść cache (Ctrl+Shift+Delete)
+2. Zamknij przeglądarkę
+3. Otwórz: `npm run dev`
+4. Idź do: http://localhost:5173/login
+5. Zaloguj się:
+   - Email: `admin@zzpwerkplaats.nl`
+   - Hasło: `Admin123!@#`
 
 ---
 
