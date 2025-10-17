@@ -1,0 +1,44 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Documentation with secrets
+documentation/REAL_PROBLEM_DIAGNOSIS.md
+documentation/DEPLOYMENT_STEPS.md
+documentation/DEPLOY_FUNCTIONS_NOW.md
+documentation/FIX_SUPABASE_SECRETS.md
+documentation/STRIPE_AUDIT_REPORT.md
+documentation/STRIPE_SECRET_KEY_FIX.md
+documentation/FIX_404_406_PAYMENT_ERRORS.md
+
+# Components with API keys
+components/APIIntegrationManager.tsx
+components/ThirdPartyConnectorsHub.tsx

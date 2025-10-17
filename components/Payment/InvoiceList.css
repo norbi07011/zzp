@@ -1,0 +1,245 @@
+/* ===================================
+   INVOICE LIST STYLES
+   =================================== */
+
+.invoice-list {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.invoice-list.loading,
+.invoice-list.error,
+.invoice-list.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.loading-spinner {
+  font-size: 1.125rem;
+  color: var(--color-text-secondary);
+}
+
+.error-message {
+  color: var(--color-danger);
+  margin-bottom: 1rem;
+}
+
+.retry-button {
+  padding: 0.75rem 1.5rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+/* ===================================
+   INVOICE HEADER
+   =================================== */
+
+.invoice-header {
+  margin-bottom: 2rem;
+}
+
+.invoice-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+/* ===================================
+   INVOICE TABLE
+   =================================== */
+
+.invoice-table-container {
+  background: var(--color-surface-primary);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow-x: auto;
+  margin-bottom: 2rem;
+}
+
+.invoice-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.invoice-table thead {
+  background: var(--color-surface-secondary);
+}
+
+.invoice-table th {
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.invoice-table tbody tr {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.15s ease;
+}
+
+.invoice-table tbody tr:hover {
+  background: var(--color-surface-secondary);
+}
+
+.invoice-table td {
+  padding: 1rem;
+  font-size: 0.9375rem;
+  color: var(--color-text-primary);
+}
+
+.invoice-row.status-paid {
+  background: rgba(76, 175, 80, 0.03);
+}
+
+.invoice-row.status-overdue {
+  background: rgba(244, 67, 54, 0.03);
+}
+
+/* ===================================
+   STATUS BADGE
+   =================================== */
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--color-surface-secondary);
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.status-icon.success {
+  color: var(--color-success);
+}
+
+.status-icon.warning {
+  color: var(--color-warning);
+}
+
+.status-icon.danger {
+  color: var(--color-danger);
+}
+
+.status-icon.muted {
+  color: var(--color-text-tertiary);
+}
+
+/* ===================================
+   INVOICE ACTIONS
+   =================================== */
+
+.invoice-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.action-button {
+  padding: 0.5rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-button:hover:not(:disabled) {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===================================
+   INVOICE SUMMARY
+   =================================== */
+
+.invoice-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.summary-card {
+  background: var(--color-surface-primary);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.summary-card h4 {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 0.75rem;
+}
+
+.summary-card .amount {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.summary-card .amount.success {
+  color: var(--color-success);
+}
+
+.summary-card .amount.danger {
+  color: var(--color-danger);
+}
+
+/* ===================================
+   RESPONSIVE
+   =================================== */
+
+@media (max-width: 1024px) {
+  .invoice-table {
+    font-size: 0.875rem;
+  }
+
+  .invoice-table th,
+  .invoice-table td {
+    padding: 0.75rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .invoice-table-container {
+    overflow-x: scroll;
+  }
+
+  .invoice-table {
+    min-width: 1000px;
+  }
+
+  .summary-card .amount {
+    font-size: 1.5rem;
+  }
+}

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Edge Function - Stripe Secret</title>
+</head>
+<body>
+    <h1>Test Edge Function</h1>
+    <button onclick="testFunction()">Test create-checkout-session</button>
+    <pre id="result"></pre>
+
+    <script>
+        async function testFunction() {
+            const resultEl = document.getElementById('result');
+            resultEl.textContent = 'Testing...';
+
+            try {
+                const response = await fetch('https://dtnotuyagygexmkyqtgb.functions.supabase.co/create-checkout-session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw'
+                    },
+                    body: JSON.stringify({
+                        priceId: 'price_1SGfnFDbg0wPn3udGPqBRbGc',
+                        userId: 'test-user-123',
+                        userType: 'worker',
+                        email: 'test@test.com'
+                    })
+                });
+
+                const data = await response.text();
+                resultEl.textContent = `Status: ${response.status}\n\nResponse:\n${data}`;
+            } catch (error) {
+                resultEl.textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

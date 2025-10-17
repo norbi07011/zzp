@@ -1,0 +1,29 @@
+/* Animacje progress bar - używamy data attributes zamiast inline styles */
+[role="progressbar"][data-width] {
+  width: attr(data-width);
+}
+
+/* Animacje konfetti - używamy data attributes */
+[data-left] {
+  left: attr(data-left);
+}
+
+[data-top] {
+  top: attr(data-top);
+}
+
+[data-color] {
+  background-color: attr(data-color);
+}
+
+[data-animation-delay] {
+  animation-delay: attr(data-animation-delay);
+}
+
+[data-delay] {
+  animation-delay: attr(data-delay);
+}
+
+[data-duration] {
+  animation-duration: attr(data-duration);
+}
