@@ -208,14 +208,13 @@ const mapUserDataWithRetry = async (supabaseUser: SupabaseUser): Promise<User> =
     return {
       id: typedProfile.id,
       email: typedProfile.email,
-      name: typedProfile.full_name,
-      fullName: typedProfile.full_name,
-      role: typedProfile.role,
+      name: typedProfile.full_name || 'User',
+      fullName: typedProfile.full_name || 'User',
+      role: (typedProfile.role as UserRole) || 'worker',
       companyName,
       certificateId,
       subscription,
-      avatar_url: typedProfile.avatar_url || undefined,
-      created_at: typedProfile.created_at,
+      created_at: typedProfile.created_at || undefined,
     };
   } catch (error) {
     console.error('Error mapping user:', error);
@@ -391,6 +390,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (workerProfileError) {
           console.error('Error creating worker profile:', workerProfileError);
           // Don't throw - user is created, just profile creation failed
+        }
+      }
+
+      // 🔥 FIX: If employer, create employer profile with company data
+      if (userData.role === 'employer') {
+        console.log('[EMPLOYER-REG] Creating employer record for:', userData.email);
+        
+        const { error: employerProfileError } = await supabase
+          .from('employers')
+          .insert({
+            profile_id: data.user.id,
+            company_name: userData.companyName || 'Nieznana firma',
+            kvk_number: '', // Can be added later in profile
+            industry: 'other',
+            location_city: '',
+            phone: userData.phone || '',
+            email: userData.email,
+            // CRITICAL: Set subscription to INACTIVE until payment
+            subscription_tier: 'basic', // Default tier
+            subscription_status: 'inactive', // ← INACTIVE until payment!
+            verified: false,
+          } as any);
+
+        if (employerProfileError) {
+          console.error('[EMPLOYER-REG] ❌ Error creating employer profile:', employerProfileError);
+          // Don't throw - user is created in auth, just profile creation failed
+          // They can complete profile later
+        } else {
+          console.log('[EMPLOYER-REG] ✅ Employer record created successfully');
         }
       }
 
