@@ -21,6 +21,17 @@ export const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Load saved login data on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('zzp_remember_email');
+    const isRemembered = localStorage.getItem('zzp_remember_me') === 'true';
+    
+    if (savedEmail && isRemembered) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberMe(true);
+    }
+  }, []);
+
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -34,6 +45,7 @@ export const LoginPage = () => {
       case 'admin': return '/admin';
       case 'employer': return '/employer';
       case 'worker': return '/worker';
+      case 'accountant': return '/accountant/dashboard';
       default: return '/';
     }
   };
@@ -74,6 +86,16 @@ export const LoginPage = () => {
 
     try {
       await login(emailTrimmed, passwordTrimmed);
+      
+      // Save email if "Remember Me" is checked
+      if (rememberMe) {
+        localStorage.setItem('zzp_remember_email', emailTrimmed);
+        localStorage.setItem('zzp_remember_me', 'true');
+      } else {
+        localStorage.removeItem('zzp_remember_email');
+        localStorage.removeItem('zzp_remember_me');
+      }
+      
       success('✅ Succesvol ingelogd! U wordt doorgestuurd...');
       setIsLoading(false); // Reset loading after successful login
       // Navigation will be handled by useEffect when isAuthenticated changes
@@ -130,7 +152,7 @@ export const LoginPage = () => {
           )}
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="on">
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-white mb-2">E-mailadres</label>
@@ -140,7 +162,18 @@ export const LoginPage = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
                   </svg>
                 </div>
-                <input id="email" type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} disabled={isLoading} className="block w-full pl-10 pr-3 py-3 bg-primary-navy/50 border border-accent-cyber/30 text-white rounded-xl focus:ring-2 focus:ring-accent-cyber focus:border-accent-cyber disabled:opacity-50 disabled:cursor-not-allowed transition placeholder-neutral-500" placeholder="uw.email@voorbeeld.nl" />
+                <input 
+                  id="email" 
+                  name="email"
+                  type="email" 
+                  required 
+                  value={formData.email} 
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+                  disabled={isLoading} 
+                  autoComplete="username"
+                  className="block w-full pl-10 pr-3 py-3 bg-primary-navy/50 border border-accent-cyber/30 text-white rounded-xl focus:ring-2 focus:ring-accent-cyber focus:border-accent-cyber disabled:opacity-50 disabled:cursor-not-allowed transition placeholder-neutral-500" 
+                  placeholder="uw.email@voorbeeld.nl" 
+                />
               </div>
             </div>
 
@@ -153,7 +186,18 @@ export const LoginPage = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
-                <input id="password" type={showPassword ? 'text' : 'password'} required value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} disabled={isLoading} className="block w-full pl-10 pr-12 py-3 bg-primary-navy/50 border border-accent-cyber/30 text-white rounded-xl focus:ring-2 focus:ring-accent-cyber focus:border-accent-cyber disabled:opacity-50 disabled:cursor-not-allowed transition placeholder-neutral-500" placeholder="••••••••" />
+                <input 
+                  id="password" 
+                  name="password"
+                  type={showPassword ? 'text' : 'password'} 
+                  required 
+                  value={formData.password} 
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })} 
+                  disabled={isLoading} 
+                  autoComplete="current-password"
+                  className="block w-full pl-10 pr-12 py-3 bg-primary-navy/50 border border-accent-cyber/30 text-white rounded-xl focus:ring-2 focus:ring-accent-cyber focus:border-accent-cyber disabled:opacity-50 disabled:cursor-not-allowed transition placeholder-neutral-500" 
+                  placeholder="••••••••" 
+                />
                 <button type="button" onClick={() => setShowPassword(!showPassword)} disabled={isLoading} className="absolute inset-y-0 right-0 pr-3 flex items-center text-accent-cyber hover:text-accent-techGreen disabled:opacity-50 transition">
                   {showPassword ? (
                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -221,6 +265,15 @@ export const LoginPage = () => {
             <p className="text-xs text-gray-500 mt-2">
               ℹ️ Inloggegevens ontvangt u na het slagen van de praktijktest
             </p>
+          </div>
+
+          <div className="bg-gradient-glass backdrop-blur-md border border-amber-500/20 rounded-xl shadow-3d p-4">
+            <p className="text-sm text-neutral-300 mb-2">
+              <span className="font-semibold text-amber-400">Księgowy?</span> Załóż profil księgowego
+            </p>
+            <Link to="/register/accountant" className="block w-full text-center bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-medium py-2.5 px-4 rounded-xl transition border border-amber-500/30 hover:border-amber-500">
+              Registreer als Księgowy / Boekhouder
+            </Link>
           </div>
         </div>
 

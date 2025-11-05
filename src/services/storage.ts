@@ -231,3 +231,202 @@ export async function getCertificateDownloadUrl(filePath: string): Promise<strin
     return null;
   }
 }
+
+// =====================================================
+// FEED MEDIA STORAGE
+// =====================================================
+
+const MAX_FEED_MEDIA_SIZE = 20 * 1024 * 1024; // 20MB
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg', 'image/gif'];
+const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/avi', 'video/mov'];
+
+export interface MediaUploadResult {
+  success: boolean;
+  url?: string;
+  fileName?: string;
+  type?: 'image' | 'video';
+  error?: string;
+}
+
+/**
+ * Upload media file (image or video) for Feed posts
+ * @param file - Media file to upload
+ * @param profileId - Profile ID (auth.uid()) for folder organization
+ * @param postId - Post ID for filename (optional, for updates)
+ */
+export async function uploadFeedMedia(
+  file: File, 
+  profileId: string, 
+  postId?: string
+): Promise<MediaUploadResult> {
+  try {
+    // Determine media type
+    let mediaType: 'image' | 'video' | undefined;
+    if (ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      mediaType = 'image';
+    } else if (ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      mediaType = 'video';
+    } else {
+      return {
+        success: false,
+        error: 'Nieprawidłowy typ pliku. Obsługiwane: JPEG, PNG, WebP, GIF, MP4, WebM, AVI, MOV'
+      };
+    }
+
+    // Validate file size
+    if (file.size > MAX_FEED_MEDIA_SIZE) {
+      return {
+        success: false,
+        error: `Plik zbyt duży. Maksymalny rozmiar to ${MAX_FEED_MEDIA_SIZE / 1024 / 1024}MB.`
+      };
+    }
+
+    // Generate unique filename with profileId folder
+    const fileExt = file.name.split('.').pop();
+    const timestamp = Date.now();
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileName = postId 
+      ? `${profileId}/${postId}/${timestamp}.${fileExt}`
+      : `${profileId}/${timestamp}-${sanitizedName}`;
+
+    console.log(`📤 Uploading to: feed-media/${fileName}`);
+
+    // Upload to Supabase Storage (feed-media bucket)
+    const { data, error } = await supabase.storage
+      .from('feed-media')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (error) {
+      console.error('❌ Feed media upload error:', error);
+      return {
+        success: false,
+        error: `Storage error: ${error.message}`
+      };
+    }
+
+    console.log('✅ Upload successful:', data.path);
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('feed-media')
+      .getPublicUrl(data.path);
+
+    return {
+      success: true,
+      url: publicUrl,
+      fileName: data.path,
+      type: mediaType
+    };
+  } catch (error) {
+    console.error('Unexpected feed media upload error:', error);
+    return {
+      success: false,
+      error: 'Wystąpił nieoczekiwany błąd podczas przesyłania.'
+    };
+  }
+}
+
+/**
+ * Upload multiple media files for a single post
+ * @param files - Array of files to upload
+ * @param profileId - Profile ID (auth.uid())
+ * @param postId - Post ID (optional)
+ */
+export async function uploadMultipleFeedMedia(
+  files: File[], 
+  profileId: string, 
+  postId?: string
+): Promise<{
+  success: boolean;
+  results: MediaUploadResult[];
+  urls: string[];
+  types: string[];
+  error?: string;
+}> {
+  try {
+    if (files.length === 0) {
+      return {
+        success: true,
+        results: [],
+        urls: [],
+        types: []
+      };
+    }
+
+    if (files.length > 10) {
+      return {
+        success: false,
+        results: [],
+        urls: [],
+        types: [],
+        error: 'Maksymalnie 10 plików na post'
+      };
+    }
+
+    console.log(`📤 Uploading ${files.length} files for profile: ${profileId}`);
+
+    const uploadPromises = files.map(file => uploadFeedMedia(file, profileId, postId));
+    const results = await Promise.all(uploadPromises);
+
+    const successfulUploads = results.filter(result => result.success);
+    const failedUploads = results.filter(result => !result.success);
+
+    if (failedUploads.length > 0) {
+      console.warn('⚠️ Some uploads failed:', failedUploads);
+    }
+
+    console.log(`✅ ${successfulUploads.length}/${files.length} files uploaded successfully`);
+
+    return {
+      success: successfulUploads.length > 0,
+      results,
+      urls: successfulUploads.map(result => result.url!),
+      types: successfulUploads.map(result => result.type!),
+      error: failedUploads.length > 0 
+        ? `${failedUploads.length} plików nie zostało przesłanych` 
+        : undefined
+    };
+  } catch (error) {
+    console.error('Multiple upload error:', error);
+    return {
+      success: false,
+      results: [],
+      urls: [],
+      types: [],
+      error: 'Błąd podczas przesyłania plików'
+    };
+  }
+}
+
+/**
+ * Delete feed media file
+ * @param mediaUrl - Full URL of the media to delete
+ */
+export async function deleteFeedMedia(mediaUrl: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Extract file path from URL (feed-media bucket)
+    const urlParts = mediaUrl.split('/feed-media/');
+    if (urlParts.length < 2) {
+      return { success: false, error: 'Invalid media URL' };
+    }
+
+    const filePath = urlParts[1];
+
+    const { error } = await supabase.storage
+      .from('feed-media')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Feed media deletion error:', error);
+      return { success: false, error: error.message };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Unexpected media deletion error:', error);
+    return { success: false, error: 'An unexpected error occurred.' };
+  }
+}

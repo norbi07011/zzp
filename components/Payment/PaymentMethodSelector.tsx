@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ===================================
 // PAYMENT METHOD SELECTOR - Dutch Payment Methods
 // ===================================

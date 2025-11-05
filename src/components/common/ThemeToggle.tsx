@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTheme } from '../../contexts/ThemeContext';
+// @ts-ignore - Lucide React compatibility
 import { Sun, Moon } from 'lucide-react';
 
 export const ThemeToggle: React.FC = () => {

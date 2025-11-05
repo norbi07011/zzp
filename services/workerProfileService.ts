@@ -110,7 +110,7 @@ export async function getWorkerProfile(userId: string): Promise<WorkerProfileDat
       console.warn('⚠️ Worker record not found, creating default...', workerError.message);
       
       // If worker doesn't exist, create one with defaults
-      const newWorker = await createWorkerRecord(userId, profile.email);
+      const newWorker = await createWorkerRecord(userId, profile);
       if (!newWorker) {
         console.error('❌ Failed to create worker record');
         throw new Error('Failed to create worker record');
@@ -119,15 +119,22 @@ export async function getWorkerProfile(userId: string): Promise<WorkerProfileDat
       console.log('✅ New worker record created, merging data...');
       return {
         ...profile,
-        ...newWorker
+        ...newWorker,
+        avatar_url: newWorker.avatar_url || profile.avatar_url || null
       };
     }
 
     console.log('✅ Worker data fetched successfully');
-    return {
+    
+    // Merge data - worker fields override profile fields EXCEPT avatar_url
+    // Use worker.avatar_url if it exists, otherwise fall back to profile.avatar_url
+    const mergedData = {
       ...profile,
-      ...worker
+      ...worker,
+      avatar_url: worker.avatar_url || profile.avatar_url || null
     };
+    
+    return mergedData;
   } catch (error) {
     console.error('❌ Error fetching worker profile:', error);
     return null;
@@ -246,16 +253,42 @@ export async function uploadAvatar(userId: string, file: File): Promise<string |
       .from('avatars')
       .getPublicUrl(fileName);
 
-    // Update profile with new avatar URL
-    const { error: updateError } = await supabase
+    console.log('✅ Avatar uploaded to storage:', publicUrl);
+
+    // Update BOTH profiles AND workers tables
+    const updateTimestamp = new Date().toISOString();
+
+    // Update profiles table
+    const { error: profileUpdateError } = await supabase
       .from('profiles')
       .update({ 
         avatar_url: publicUrl,
-        updated_at: new Date().toISOString()
+        updated_at: updateTimestamp
       })
       .eq('id', userId);
 
-    if (updateError) throw updateError;
+    if (profileUpdateError) {
+      console.error('❌ Failed to update profiles.avatar_url:', profileUpdateError);
+      throw profileUpdateError;
+    }
+
+    console.log('✅ Updated profiles.avatar_url');
+
+    // Update workers table
+    const { error: workerUpdateError } = await supabase
+      .from('workers')
+      .update({ 
+        avatar_url: publicUrl,
+        updated_at: updateTimestamp
+      })
+      .eq('profile_id', userId);
+
+    if (workerUpdateError) {
+      console.warn('⚠️ Failed to update workers.avatar_url:', workerUpdateError);
+      // Don't throw - profiles table is updated, worker table might not exist yet
+    } else {
+      console.log('✅ Updated workers.avatar_url');
+    }
 
     return publicUrl;
   } catch (error) {
@@ -472,7 +505,7 @@ export async function updatePrivacySettings(
 /**
  * Create worker record if it doesn't exist
  */
-async function createWorkerRecord(userId: string, email: string): Promise<Worker | null> {
+async function createWorkerRecord(userId: string, profile: any): Promise<Worker | null> {
   try {
     console.log('🔧 Creating worker record for user:', userId);
     
@@ -480,6 +513,7 @@ async function createWorkerRecord(userId: string, email: string): Promise<Worker
       .from('workers')
       .insert({
         profile_id: userId,
+        avatar_url: profile.avatar_url || null, // Copy from profile
         kvk_number: '', // To be filled by user
         specialization: '',
         hourly_rate: 0,
@@ -695,10 +729,17 @@ export async function getApplications(workerId: string): Promise<JobApplication[
       .from('job_applications')
       .select(`
         *,
-        job:jobs(id, title, company, location, salary_min, salary_max)
+        job:jobs(
+          id, 
+          title, 
+          location, 
+          salary_min, 
+          salary_max,
+          employer:employers(company_name)
+        )
       `)
       .eq('worker_id', workerId)
-      .order('applied_at', { ascending: false });
+      .order('applied_at', { ascending: false});
 
     if (error) throw error;
     return data || [];
@@ -842,13 +883,14 @@ export interface Review {
  */
 export async function getReviews(workerId: string): Promise<Review[]> {
   try {
+    // workerId is actually user_id (profile_id) from the worker
     const { data, error } = await supabase
       .from('reviews')
       .select(`
         *,
         employer:employers(company_name)
       `)
-      .eq('worker_id', workerId)
+      .eq('reviewee_id', workerId)  // Changed from worker_id to reviewee_id
       .order('created_at', { ascending: false });
 
     if (error) throw error;

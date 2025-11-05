@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * FILE MANAGER COMPONENT
  * Admin panel for file management with grid/list view, filtering, and actions

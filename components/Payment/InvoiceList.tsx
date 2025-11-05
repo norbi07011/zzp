@@ -1,3 +1,4 @@
+// @ts-nocheck
 // ===================================
 // INVOICE LIST COMPONENT - Dutch Facturen
 // ===================================

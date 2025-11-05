@@ -1128,6 +1128,137 @@ export type Database = {
           },
         ]
       }
+      saved_workers: {
+        Row: {
+          id: string
+          employer_id: string
+          worker_id: string
+          notes: string | null
+          tags: string[] | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          employer_id: string
+          worker_id: string
+          notes?: string | null
+          tags?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          employer_id?: string
+          worker_id?: string
+          notes?: string | null
+          tags?: string[] | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_workers_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "workers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      search_history: {
+        Row: {
+          id: string
+          employer_id: string
+          category: string | null
+          level: string | null
+          location: string | null
+          postal_code: string | null
+          radius_km: number | null
+          results_count: number | null
+          search_date: string | null
+          filters: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          employer_id: string
+          category?: string | null
+          level?: string | null
+          location?: string | null
+          postal_code?: string | null
+          radius_km?: number | null
+          results_count?: number | null
+          search_date?: string | null
+          filters?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          employer_id?: string
+          category?: string | null
+          level?: string | null
+          location?: string | null
+          postal_code?: string | null
+          radius_km?: number | null
+          results_count?: number | null
+          search_date?: string | null
+          filters?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          employer_id: string
+          plan: string
+          status: string
+          start_date: string
+          end_date: string | null
+          payment_id: string | null
+          stripe_subscription_id: string | null
+          amount: number | null
+          currency: string | null
+          auto_renew: boolean | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          employer_id: string
+          plan: string
+          status: string
+          start_date?: string
+          end_date?: string | null
+          payment_id?: string | null
+          stripe_subscription_id?: string | null
+          amount?: number | null
+          currency?: string | null
+          auto_renew?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          employer_id?: string
+          plan?: string
+          status?: string
+          start_date?: string
+          end_date?: string | null
+          payment_id?: string | null
+          stripe_subscription_id?: string | null
+          amount?: number | null
+          currency?: string | null
+          auto_renew?: boolean | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       worker_availability: {
         Row: {
           booking_job_id: string | null

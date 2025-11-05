@@ -242,6 +242,7 @@ export interface Profile {
   avatarUrl: string;
   firstName: string;
   lastName: string;
+  email?: string; // ✅ NEW: needed for AddToTeamButton
   category: string;
   level: Level;
   location: string;
@@ -392,3 +393,187 @@ export interface Notification {
     timestamp: string;
     link?: string;
 }
+
+// ==========================================
+// SYSTEM KOMUNIKACJI BUDOWLANEJ
+// ==========================================
+
+export type ProjectRole = 'worker' | 'supervisor' | 'employer' | 'accountant';
+export type MessageType = 'text' | 'image' | 'document' | 'location' | 'progress_update' | 'safety_alert';
+export type ChatGroupType = 'project_general' | 'team' | 'supervisor' | 'safety' | 'progress';
+export type SafetyLevel = 'low' | 'medium' | 'high' | 'critical';
+export type ProgressStatus = 'on_track' | 'delayed' | 'ahead' | 'completed' | 'blocked';
+
+export interface BuildingChatMessage {
+  id: string;
+  group_id: string;
+  sender_id: string;
+  sender_name: string;
+  sender_role: ProjectRole;
+  message_type: MessageType;
+  content: string;
+  metadata?: {
+    file_url?: string;
+    file_name?: string;
+    location?: {
+      lat: number;
+      lng: number;
+      address?: string;
+    };
+    progress_data?: {
+      task_name: string;
+      completion_percentage: number;
+      photos?: string[];
+    };
+    safety_data?: {
+      level: SafetyLevel;
+      category: string;
+      location_description: string;
+    };
+  };
+  created_at: string;
+  updated_at: string;
+  is_read: boolean;
+  parent_message_id?: string; // For replies
+}
+
+export interface ProjectChatGroup {
+  id: string;
+  project_id: string;
+  name: string;
+  description?: string;
+  group_type: ChatGroupType;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  last_message?: BuildingChatMessage;
+  unread_count: number;
+  members: ProjectChatMember[];
+}
+
+export interface ProjectChatMember {
+  user_id: string;
+  user_name: string;
+  user_role: ProjectRole;
+  joined_at: string;
+  is_admin: boolean;
+  last_seen_at?: string;
+}
+
+export interface BuildingNotification {
+  id: string;
+  user_id: string;
+  project_id: string;
+  notification_type: 'message' | 'progress_update' | 'safety_alert' | 'task_assignment' | 'deadline_reminder';
+  title: string;
+  content: string;
+  metadata?: {
+    chat_group_id?: string;
+    message_id?: string;
+    progress_report_id?: string;
+    safety_alert_id?: string;
+    task_id?: string;
+  };
+  is_read: boolean;
+  created_at: string;
+  expires_at?: string;
+}
+
+export interface ProgressReport {
+  id: string;
+  project_id: string;
+  reporter_id: string;
+  reporter_name: string;
+  reporter_role: ProjectRole;
+  task_name: string;
+  task_description: string;
+  completion_percentage: number;
+  status: ProgressStatus;
+  notes?: string;
+  photos: string[];
+  location?: {
+    lat: number;
+    lng: number;
+    address?: string;
+  };
+  hours_worked?: number;
+  materials_used?: Array<{
+    name: string;
+    quantity: number;
+    unit: string;
+  }>;
+  issues_encountered?: string;
+  next_steps?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SafetyAlert {
+  id: string;
+  project_id: string;
+  reporter_id: string;
+  reporter_name: string;
+  reporter_role: ProjectRole;
+  title: string;
+  description: string;
+  safety_level: SafetyLevel;
+  category: string; // e.g., 'fall_hazard', 'equipment_malfunction', 'weather', 'unauthorized_access'
+  location_description: string;
+  location_coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  photos: string[];
+  actions_taken?: string;
+  status: 'open' | 'investigating' | 'resolved' | 'false_alarm';
+  assigned_to?: string;
+  resolution_notes?: string;
+  created_at: string;
+  updated_at: string;
+  resolved_at?: string;
+}
+
+// Helper functions for communication system
+export const getMessageTypeLabel = (type: MessageType): string => {
+  const labels: Record<MessageType, string> = {
+    text: 'Wiadomość',
+    image: 'Zdjęcie',
+    document: 'Dokument',
+    location: 'Lokalizacja',
+    progress_update: 'Raport postępu',
+    safety_alert: 'Alert bezpieczeństwa'
+  };
+  return labels[type];
+};
+
+export const getSafetyLevelColor = (level: SafetyLevel): string => {
+  const colors: Record<SafetyLevel, string> = {
+    low: 'text-green-600 bg-green-50',
+    medium: 'text-yellow-600 bg-yellow-50',
+    high: 'text-orange-600 bg-orange-50',
+    critical: 'text-red-600 bg-red-50'
+  };
+  return colors[level];
+};
+
+export const getProgressStatusColor = (status: ProgressStatus): string => {
+  const colors: Record<ProgressStatus, string> = {
+    on_track: 'text-green-600 bg-green-50',
+    ahead: 'text-blue-600 bg-blue-50',
+    delayed: 'text-orange-600 bg-orange-50',
+    blocked: 'text-red-600 bg-red-50',
+    completed: 'text-gray-600 bg-gray-50'
+  };
+  return colors[status];
+};
+
+export const formatProjectRole = (role: ProjectRole): string => {
+  const roleLabels: Record<ProjectRole, string> = {
+    worker: 'Pracownik',
+    supervisor: 'Kierownik',
+    employer: 'Pracodawca',
+    accountant: 'Księgowy'
+  };
+  return roleLabels[role];
+};

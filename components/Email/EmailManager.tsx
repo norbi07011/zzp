@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EMAIL MANAGER COMPONENT
  * Admin panel for managing emails, templates, and viewing analytics

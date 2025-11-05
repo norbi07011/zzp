@@ -18,12 +18,10 @@ export interface WorkerWithProfile extends Worker {
  * Fetch all workers with their profiles
  */
 export async function fetchWorkers(): Promise<WorkerWithProfile[]> {
+  // v_workers już zawiera dane z profilu, nie potrzeba JOIN
   const { data, error } = await supabase
     .from('v_workers')
-    .select(`
-      *,
-      profile:v_profiles(*)
-    `)
+    .select('*')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -38,12 +36,10 @@ export async function fetchWorkers(): Promise<WorkerWithProfile[]> {
  * Fetch single worker by ID with profile
  */
 export async function fetchWorkerById(workerId: string): Promise<WorkerWithProfile | null> {
+  // v_workers już zawiera dane z profilu, nie potrzeba JOIN
   const { data, error } = await supabase
     .from('v_workers')
-    .select(`
-      *,
-      profile:v_profiles(*)
-    `)
+    .select('*')
     .eq('id', workerId)
     .single();
 
@@ -61,10 +57,7 @@ export async function fetchWorkerById(workerId: string): Promise<WorkerWithProfi
 export async function fetchWorkersBySpecialization(specialization: string): Promise<WorkerWithProfile[]> {
   const { data, error } = await supabase
     .from('v_workers')
-    .select(`
-      *,
-      profile:v_profiles(*)
-    `)
+    .select('*')
     .eq('specialization', specialization)
     .order('rating', { ascending: false });
 
@@ -82,10 +75,7 @@ export async function fetchWorkersBySpecialization(specialization: string): Prom
 export async function fetchVerifiedWorkers(): Promise<WorkerWithProfile[]> {
   const { data, error } = await supabase
     .from('v_workers')
-    .select(`
-      *,
-      profile:v_profiles(*)
-    `)
+    .select('*')
     .eq('verified', true)
     .order('rating', { ascending: false });
 
@@ -269,10 +259,7 @@ export async function getWorkerStats() {
 
   const { data: topRatedWorkers } = await supabase
     .from('v_workers')
-    .select(`
-      *,
-      profile:v_profiles(full_name)
-    `)
+    .select('*')
     .order('rating', { ascending: false })
     .limit(5);
 

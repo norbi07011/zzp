@@ -7,14 +7,21 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { PageContainer, PageHeader, StatsGrid, StatCard, ContentCard } from '../../components/common/PageContainer';
+import { ProjectCommunicationManager } from '../../components/ProjectCommunicationManager';
 import employerService, {
   type EmployerStats,
   type SearchHistoryItem,
   type SavedWorker,
   type Message,
+  type EmployerReview,
 } from '../../services/employerService';
+import type { Database } from '../../src/lib/database.types';
+
+type Employer = Database['public']['Tables']['employers']['Row'];
 
 interface StatCard {
   label: string;
@@ -25,11 +32,13 @@ interface StatCard {
 
 export const EmployerDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   // State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [employerId, setEmployerId] = useState<string | null>(null);
+  const [employerProfile, setEmployerProfile] = useState<Employer | null>(null);
   
   // Data state
   const [stats, setStats] = useState<EmployerStats | null>(null);
@@ -37,6 +46,16 @@ export const EmployerDashboard = () => {
   const [savedWorkers, setSavedWorkers] = useState<SavedWorker[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [reviews, setReviews] = useState<EmployerReview[]>([]);
+  
+  // Messages UI state
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [replyContent, setReplyContent] = useState('');
+  const [sending, setSending] = useState(false);
+
+  // Communication UI state
+  const [showCommunicationPanel, setShowCommunicationPanel] = useState(false);
 
   // =====================================================
   // DATA LOADING
@@ -70,6 +89,7 @@ export const EmployerDashboard = () => {
       }
 
       setEmployerId(employer.id);
+      setEmployerProfile(employer);
 
       // 2. Load all dashboard data in parallel
       console.log('[EMPLOYER-DASH] Loading dashboard data for employer:', employer.id);
@@ -79,12 +99,14 @@ export const EmployerDashboard = () => {
         workersData,
         messagesData,
         unreadCountData,
+        reviewsData,
       ] = await Promise.all([
         employerService.getEmployerStats(employer.id),
         employerService.getSearchHistory(employer.id, 5),
         employerService.getSavedWorkers(employer.id),
         employerService.getMessages(user.id, 3),
         employerService.getUnreadMessageCount(user.id),
+        employerService.getEmployerReviews(employer.id),
       ]);
 
       console.log('[EMPLOYER-DASH] Data loaded:', { 
@@ -92,7 +114,8 @@ export const EmployerDashboard = () => {
         history_count: historyData.length,
         saved_workers: workersData.length,
         messages_count: messagesData.length,
-        unread: unreadCountData 
+        unread: unreadCountData,
+        reviews_count: reviewsData.length,
       });
 
       setStats(statsData);
@@ -100,6 +123,7 @@ export const EmployerDashboard = () => {
       setSavedWorkers(workersData.slice(0, 6)); // Show max 6
       setMessages(messagesData);
       setUnreadCount(unreadCountData);
+      setReviews(reviewsData);
 
     } catch (err) {
       console.error('[EMPLOYER-DASH] Error loading dashboard data:', err);
@@ -107,6 +131,68 @@ export const EmployerDashboard = () => {
     } finally {
       console.log('[EMPLOYER-DASH] Loading complete');
       setLoading(false);
+    }
+  };
+
+  // =====================================================
+  // MESSAGE HANDLERS
+  // =====================================================
+
+  const handleMarkAsRead = async (messageId: string) => {
+    try {
+      const success = await employerService.markMessageAsRead(messageId);
+      if (success) {
+        setMessages(prevMessages => 
+          prevMessages.map(msg => 
+            msg.id === messageId ? { ...msg, is_read: true } : msg
+          )
+        );
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error('Error marking message as read:', err);
+    }
+  };
+
+  const handleOpenMessage = (message: Message) => {
+    setSelectedMessage(message);
+    if (!message.is_read) {
+      handleMarkAsRead(message.id);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyContent.trim() || !user?.id) return;
+
+    try {
+      setSending(true);
+      
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: user.id,
+          recipient_id: selectedMessage.sender_id,
+          subject: `Re: ${selectedMessage.subject}`,
+          content: replyContent,
+          is_read: false,
+        });
+
+      if (error) throw error;
+
+      alert('✅ Odpowiedź wysłana!');
+      setReplyContent('');
+      setSelectedMessage(null);
+      
+      // Reload messages
+      if (user?.id) {
+        const messagesData = await employerService.getMessages(user.id, 10);
+        setMessages(messagesData);
+      }
+    } catch (err) {
+      console.error('Error sending reply:', err);
+      alert('❌ Nie udało się wysłać odpowiedzi');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -143,6 +229,17 @@ export const EmployerDashboard = () => {
         color: 'bg-purple-500'
       }
     ];
+  };
+
+  // Helper function to map icons to colors
+  const getStatColor = (icon: string): 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'teal' => {
+    const colorMap: Record<string, 'red' | 'blue' | 'green' | 'purple' | 'orange' | 'teal'> = {
+      'search': 'blue',
+      'bookmark': 'orange',
+      'message': 'green',
+      'calendar': 'purple',
+    };
+    return colorMap[icon] || 'blue';
   };
 
   // =====================================================
@@ -254,34 +351,47 @@ export const EmployerDashboard = () => {
   const statsCards = getStatsCards();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Panel pracodawcy</h1>
-          <p className="mt-2 text-gray-600">
-            Witamy ponownie, {user?.fullName || 'Pracodawco'}! Zarządzaj swoimi pracownikami i projektami
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      {/* Modern Header */}
+      <PageHeader 
+        icon="🏢"
+        title={employerProfile?.company_name || 'Panel pracodawcy'}
+        subtitle={`Witamy ponownie, ${user?.fullName || 'Pracodawco'}! Zarządzaj swoimi pracownikami i projektami`}
+        actionButton={
+          <div className="flex gap-4">
+            <button
+              onClick={() => {
+                console.log('Communication button clicked! Current state:', showCommunicationPanel);
+                setShowCommunicationPanel(!showCommunicationPanel);
+              }}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 transform hover:scale-105 font-medium shadow-lg flex items-center gap-2"
+            >
+              🏗️ Komunikacja Projektowa
+            </button>
+            <Link
+              to="/employer/profile"
+              className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl hover:from-emerald-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 font-bold text-lg shadow-xl"
+            >
+              ⚙️ Mój profil
+            </Link>
+          </div>
+        }
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {statsCards.map((stat, idx) => (
-            <div key={idx} className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`${stat.color} text-white p-3 rounded-lg`}>
-                  {getIconSvg(stat.icon)}
-                </div>
-              </div>
-              <p className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</p>
-              <p className="text-sm text-gray-600">{stat.label}</p>
-            </div>
-          ))}
-        </div>
+      {/* Modern Stats Cards */}
+      <StatsGrid columns={4}>
+        {statsCards.map((stat, idx) => (
+          <StatCard
+            key={idx}
+            title={stat.label}
+            value={stat.value}
+            color={getStatColor(stat.icon)}
+            icon={getIconSvg(stat.icon)}
+          />
+        ))}
+      </StatsGrid>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Recent Search History */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow p-6 mb-8">
@@ -319,7 +429,7 @@ export const EmployerDashboard = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-sm text-gray-500">
-                            {new Date(search.search_date).toLocaleDateString('pl-PL')}
+                            {search.search_date ? new Date(search.search_date).toLocaleDateString('pl-PL') : 'N/A'}
                           </p>
                           <button 
                             onClick={() => handleRepeatSearch(search.id)}
@@ -360,13 +470,13 @@ export const EmployerDashboard = () => {
                     <div key={savedWorker.id} className="border border-gray-200 rounded-lg p-4 hover:border-orange-500 transition-colors relative group">
                       <div className="flex items-start gap-3 mb-3">
                         <img 
-                          src={savedWorker.worker.profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(savedWorker.worker.profile.full_name)}&background=f97316&color=fff`}
-                          alt={savedWorker.worker.profile.full_name}
+                          src={savedWorker.worker.profile.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(savedWorker.worker.profile.full_name || 'User')}&background=f97316&color=fff`}
+                          alt={savedWorker.worker.profile.full_name || 'Worker'}
                           className="w-12 h-12 rounded-full object-cover"
                         />
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-gray-900 truncate">
-                            {savedWorker.worker.profile.full_name}
+                            {savedWorker.worker.profile.full_name || 'Nieznany'}
                           </p>
                           <p className="text-sm text-gray-600">{savedWorker.worker.specialization}</p>
                         </div>
@@ -386,12 +496,64 @@ export const EmployerDashboard = () => {
                           <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                           </svg>
-                          <span className="ml-1 text-sm text-gray-600">{savedWorker.worker.rating.toFixed(1)}</span>
+                          <span className="ml-1 text-sm text-gray-600">{savedWorker.worker.rating ? savedWorker.worker.rating.toFixed(1) : 'N/A'}</span>
                         </div>
                       </div>
                       <button className="w-full px-3 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700">
                         Kontakt
                       </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* My Reviews */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Moje opinie</h2>
+                <span className="text-sm text-gray-500">{reviews.length} opinii</span>
+              </div>
+              
+              {reviews.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">Brak wystawionych opinii</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Wystawiaj opinie pracownikom po zakończeniu współpracy
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {reviews.slice(0, 5).map(review => (
+                    <div key={review.id} className="border-b border-gray-200 pb-4 last:border-0 last:pb-0">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-gray-900">
+                            {review.worker?.profile?.full_name || 'Nieznany pracownik'}
+                          </p>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {review.worker?.specialization || 'Brak specjalizacji'}
+                          </p>
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="flex items-center">
+                              {'⭐'.repeat(review.rating)}
+                              {'☆'.repeat(5 - review.rating)}
+                            </div>
+                            <span className="text-sm text-gray-600">{review.rating}/5</span>
+                            {review.status === 'pending' && (
+                              <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">
+                                Oczekuje
+                              </span>
+                            )}
+                          </div>
+                          {review.comment && (
+                            <p className="text-sm text-gray-600 line-clamp-2">{review.comment}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1">
+                            {review.created_at ? new Date(review.created_at).toLocaleDateString('pl-PL') : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -421,28 +583,32 @@ export const EmployerDashboard = () => {
                   {messages.map(message => (
                     <div 
                       key={message.id} 
-                      className={`border-b border-gray-100 pb-4 last:border-0 last:pb-0 ${
-                        !message.read ? 'bg-orange-50 -mx-4 px-4 py-2 rounded' : ''
+                      onClick={() => handleOpenMessage(message)}
+                      className={`border-b border-gray-100 pb-4 last:border-0 last:pb-0 cursor-pointer hover:bg-gray-50 transition-colors ${
+                        !message.is_read ? 'bg-orange-50 -mx-4 px-4 py-2 rounded' : ''
                       }`}
                     >
                       <div className="flex items-start justify-between mb-1">
-                        <p className={`text-sm ${!message.read ? 'font-bold' : 'font-medium'} text-gray-900`}>
+                        <p className={`text-sm ${!message.is_read ? 'font-bold' : 'font-medium'} text-gray-900`}>
                           {message.sender_profile.full_name}
                         </p>
-                        {!message.read && (
+                        {!message.is_read && (
                           <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0 mt-1.5"></span>
                         )}
                       </div>
                       <p className="text-sm text-gray-600 mb-1 truncate">{message.subject}</p>
                       <p className="text-xs text-gray-500">
-                        {new Date(message.created_at).toLocaleDateString('pl-PL')}
+                        {message.created_at ? new Date(message.created_at).toLocaleDateString('pl-PL') : 'N/A'}
                       </p>
                     </div>
                   ))}
                 </div>
               )}
               
-              <button className="w-full mt-4 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+              <button 
+                onClick={() => setShowMessagesModal(true)}
+                className="w-full mt-4 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
                 Zobacz wszystkie
               </button>
             </div>
@@ -485,7 +651,150 @@ export const EmployerDashboard = () => {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+
+        {/* Messages Modal */}
+        {showMessagesModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-900">
+                📬 Wiadomości {unreadCount > 0 && `(${unreadCount} nowe)`}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowMessagesModal(false);
+                  setSelectedMessage(null);
+                  setReplyContent('');
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 h-[calc(90vh-120px)]">
+              {/* Messages List */}
+              <div className="lg:col-span-1 border-r border-gray-200 overflow-y-auto p-4">
+                {messages.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">Brak wiadomości</p>
+                ) : (
+                  <div className="space-y-2">
+                    {messages.map(msg => (
+                      <button
+                        key={msg.id}
+                        onClick={() => handleOpenMessage(msg)}
+                        className={`w-full text-left p-4 rounded-lg transition-all ${
+                          selectedMessage?.id === msg.id 
+                            ? 'bg-orange-100 border-2 border-orange-500' 
+                            : msg.is_read
+                            ? 'bg-white border border-gray-200 hover:border-gray-300'
+                            : 'bg-orange-50 border-2 border-orange-300 hover:border-orange-400'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <span className={`font-semibold ${msg.is_read ? 'text-gray-900' : 'text-orange-600'}`}>
+                            {msg.sender_profile?.full_name || 'Nieznany nadawca'}
+                          </span>
+                          {!msg.is_read && (
+                            <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-1 truncate">{msg.subject}</p>
+                        <p className="text-xs text-gray-500">
+                          {msg.created_at ? new Date(msg.created_at).toLocaleDateString('pl-PL') : 'N/A'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Message Detail */}
+              <div className="lg:col-span-2 overflow-y-auto p-6">
+                {!selectedMessage ? (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    Wybierz wiadomość aby ją przeczytać
+                  </div>
+                ) : (
+                  <div>
+                    <div className="mb-6 pb-6 border-b border-gray-200">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{selectedMessage.subject}</h3>
+                      <div className="flex items-center gap-4 text-sm text-gray-500">
+                        <span>Od: {selectedMessage.sender_profile?.full_name}</span>
+                        <span>•</span>
+                        <span>
+                          {selectedMessage.created_at ? new Date(selectedMessage.created_at).toLocaleString('pl-PL') : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mb-6 text-gray-700 whitespace-pre-wrap">
+                      {selectedMessage.content}
+                    </div>
+
+                    {/* Reply Form */}
+                    <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">Odpowiedz</h4>
+                      <textarea
+                        value={replyContent}
+                        onChange={(e) => setReplyContent(e.target.value)}
+                        placeholder="Wpisz swoją odpowiedź..."
+                        className="w-full bg-white border border-gray-300 rounded-lg p-4 text-gray-900 placeholder-gray-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 min-h-[120px]"
+                      />
+                      <div className="flex justify-end gap-3 mt-4">
+                        <button
+                          onClick={() => {
+                            setSelectedMessage(null);
+                            setReplyContent('');
+                          }}
+                          className="px-6 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                          Anuluj
+                        </button>
+                        <button
+                          onClick={handleSendReply}
+                          disabled={sending || !replyContent.trim()}
+                          className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {sending ? 'Wysyłanie...' : 'Wyślij odpowiedź'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
+        
+        {/* Communication Panel */}
+        {showCommunicationPanel && (
+          <div className="mt-8 bg-white rounded-lg shadow-lg border-2 border-blue-200">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">🏗️ Komunikacja Projektowa</h2>
+                  <p className="text-gray-600">Zarządzaj komunikacją w projektach budowlanych</p>
+                </div>
+                <button
+                  onClick={() => setShowCommunicationPanel(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div className="p-6">
+              <ProjectCommunicationManager 
+                userRole="employer"
+                allowCreateProjects={true}
+              />
+            </div>
+          </div>
+        )}
+      </PageContainer>
   );
 };

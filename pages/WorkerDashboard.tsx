@@ -21,8 +21,10 @@ import { BriefcaseIcon, AcademicCapIcon, CheckCircleIcon } from '../components/i
 import { DashboardHeader, TabNavigation } from '../components/DashboardComponents';
 import { SubscriptionPanel } from '../src/components/subscription/SubscriptionPanel';
 import { CertificateApplicationForm } from '../src/components/subscription/CertificateApplicationForm';
+import FeedPage from '../pages/FeedPage';
+import { PageContainer, PageHeader, StatsGrid, StatCard, ContentCard } from '../components/common/PageContainer';
 
-type View = 'overview' | 'profile' | 'portfolio' | 'jobs' | 'applications' | 'verification' | 'edit-profile' | 'earnings' | 'reviews' | 'analytics' | 'subscription' | 'certificate-application';
+type View = 'feed' | 'overview' | 'profile' | 'portfolio' | 'applications' | 'verification' | 'edit-profile' | 'earnings' | 'reviews' | 'analytics' | 'subscription' | 'certificate-application' | 'messages';
 
 // ===================================================================
 // MAIN WORKER DASHBOARD COMPONENT
@@ -32,7 +34,7 @@ export default function WorkerDashboard() {
   const navigate = useNavigate();
   
   // State Management
-  const [activeView, setActiveView] = useState<View>('overview');
+  const [activeView, setActiveView] = useState<View>('feed');
   const [activeProfileTab, setActiveProfileTab] = useState<string>('overview');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -50,6 +52,10 @@ export default function WorkerDashboard() {
   const [earningsStats, setEarningsStats] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedMessage, setSelectedMessage] = useState<any>(null);
+  const [replyContent, setReplyContent] = useState('');
   
   // Form State for Profile Edit
   const [profileForm, setProfileForm] = useState({
@@ -102,6 +108,41 @@ export default function WorkerDashboard() {
   // ===================================================================
   // DATA LOADING
   // ===================================================================
+
+  const loadMessages = async (userId: string) => {
+    try {
+      // Fetch messages where worker is recipient
+      const { data, error } = await supabase
+        .from('messages')
+        .select(`
+          id,
+          sender_id,
+          recipient_id,
+          subject,
+          content,
+          is_read,
+          created_at,
+          sender_profile:profiles!sender_id(
+            full_name,
+            email
+          )
+        `)
+        .eq('recipient_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setMessages(data || []);
+      
+      // Count unread messages
+      const unread = (data || []).filter((msg: any) => !msg.is_read).length;
+      setUnreadCount(unread);
+    } catch (err) {
+      console.error('Error loading messages:', err);
+      setMessages([]);
+      setUnreadCount(0);
+    }
+  };
 
   useEffect(() => {
     loadAllData();
@@ -168,31 +209,97 @@ export default function WorkerDashboard() {
       // const stats = await workerProfileService.getEarningsStats(user.id);
       setEarningsStats({ total: 0, thisMonth: 0, lastMonth: 0, pending: 0, paid: 0 }); // Mock
 
-      // Load reviews
-      // const reviewsData = await workerProfileService.getReviews(user.id);
-      setReviews([]); // Mock: empty until DB fixed
+      // Load reviews - FIXED: Now uses reviewee_id instead of worker_id
+      const reviewsData = await workerProfileService.getReviews(user.id);
+      setReviews(reviewsData);
 
-      // Load analytics
-      // const analyticsData = await workerProfileService.getAnalytics(user.id);
-      setAnalytics({ 
-        profile_views: 0, 
-        job_views: 0, 
-        applications_sent: 0, 
-        applications_accepted: 0,
-        total_earnings: 0,
-        average_rating: 0,
-        completed_jobs: 0,
-        response_rate: 0
-      }); // Mock: zeros until DB fixed
+      // Load analytics - now enabled
+      try {
+        const analyticsData = await workerProfileService.getAnalytics(user.id);
+        setAnalytics(analyticsData);
+      } catch (err) {
+        console.warn('[WORKER-DASH] Could not load analytics:', err);
+        // Set default analytics data
+        setAnalytics({ 
+          profile_views: 0, 
+          job_views: 0, 
+          applications_sent: 0, 
+          applications_accepted: 0,
+          total_earnings: 0,
+          average_rating: reviews.length > 0 ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length : 0,
+          completed_jobs: 0,
+          response_rate: 0
+        });
+      }
 
       // Load jobs (mock for now)
       setJobs(MOCK_JOBS.slice(0, 6));
+
+      // Load messages
+      await loadMessages(user.id);
 
       setLoading(false);
     } catch (err) {
       console.error('Error loading data:', err);
       setError('Nie udało się załadować danych profilu');
       setLoading(false);
+    }
+  };
+
+  // ===================================================================
+  // MESSAGE HANDLERS
+  // ===================================================================
+
+  const handleMarkAsRead = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      // Update local state
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.id === messageId ? { ...msg, is_read: true } : msg
+        )
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Error marking message as read:', err);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedMessage || !replyContent.trim()) return;
+
+    try {
+      setSaving(true);
+      
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          sender_id: userId,
+          recipient_id: selectedMessage.sender_id,
+          subject: `Re: ${selectedMessage.subject}`,
+          content: replyContent,
+          is_read: false,
+        });
+
+      if (error) throw error;
+
+      setSuccess('Odpowiedź wysłana!');
+      setReplyContent('');
+      setSelectedMessage(null);
+      
+      // Reload messages
+      await loadMessages(userId);
+    } catch (err) {
+      console.error('Error sending reply:', err);
+      setError('Nie udało się wysłać odpowiedzi');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -527,6 +634,8 @@ export default function WorkerDashboard() {
 
   const renderContent = () => {
     switch (activeView) {
+      case 'feed':
+        return renderFeed();
       case 'overview':
         return renderOverview();
       case 'profile':
@@ -537,19 +646,23 @@ export default function WorkerDashboard() {
         return renderSubscription();
       case 'certificate-application':
         return renderCertificateApplication();
-      case 'jobs':
-        return renderJobs();
-      case 'applications':
-        return renderApplications();
-      case 'earnings':
-        return renderEarnings();
       case 'reviews':
         return renderReviewsAndAnalytics();
       case 'verification':
         return renderVerification();
+      case 'messages':
+        return renderMessages();
       default:
-        return renderOverview();
+        return renderFeed();
     }
+  };
+
+  // ===================================================================
+  // FEED TAB
+  // ===================================================================
+
+  const renderFeed = () => {
+    return <FeedPage />;
   };
 
   // ===================================================================
@@ -562,129 +675,127 @@ export default function WorkerDashboard() {
     const completionPercentage = workerProfileService.calculateProfileCompletion(workerProfile);
 
     return (
-      <div className="min-h-screen bg-primary-dark relative overflow-hidden">
-        <div className="fixed top-20 right-20 w-96 h-96 bg-accent-techGreen/10 rounded-full blur-[150px]"></div>
-        <div className="fixed bottom-20 left-20 w-96 h-96 bg-accent-cyber/10 rounded-full blur-[150px]"></div>
-
-        <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
-          {/* Hero Stats */}
-          <div className="bg-gradient-glass backdrop-blur-md rounded-2xl shadow-glow-cyber border border-accent-techGreen/20 p-8 mb-8">
-            <div className="flex items-center gap-6 mb-6">
-              <div className="relative group">
-                <img
-                  src={workerProfile.avatar_url || 'https://i.pravatar.cc/120?img=33'}
-                  alt={workerProfile.full_name}
-                  className="w-24 h-24 rounded-2xl border-4 border-accent-cyber"
-                />
-                <label className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <span className="text-white text-sm">📷 Zmień</span>
-                  <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
-                </label>
-              </div>
-              <div className="flex-1">
-                <h1 className="text-4xl font-bold text-white mb-2">
-                  Witaj, {workerProfile.full_name}! 👋
-                </h1>
-                <p className="text-neutral-300 text-lg">
-                  {workerProfile.specialization || 'Pracownik'} • {workerProfile.location_city || 'Holandia'}
-                </p>
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="flex items-center text-yellow-400">
-                    ⭐ <span className="ml-1 text-white font-bold">{(workerProfile.rating || 0).toFixed(1)}</span>
-                    <span className="text-neutral-400 text-sm ml-1">({workerProfile.rating_count || 0} reviews)</span>
-                  </div>
-                  {workerProfile.verified && (
-                    <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-lg text-sm">
-                      ✓ Zweryfikowany
-                    </span>
-                  )}
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-sm text-neutral-400 mb-1">Kompletność profilu</div>
-                <div className="text-3xl font-bold text-accent-techGreen">{completionPercentage}%</div>
-                <div className="w-32 h-2 bg-dark-700 rounded-full mt-2 overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-accent-cyber to-accent-techGreen rounded-full transition-all duration-500"
-                    style={{ width: `${completionPercentage}%` }}
-                  ></div>
-                </div>
-              </div>
+      <PageContainer>
+        {/* Modern Header */}
+        <PageHeader 
+          icon="👋"
+          title={`Witaj, ${workerProfile.full_name}!`}
+          subtitle={`${workerProfile.specialization || 'Pracownik'} • ${workerProfile.location_city || 'Holandia'} • Kompletność profilu: ${completionPercentage}%`}
+          actionButton={
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveView('profile')}
+                className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-2xl hover:from-emerald-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105 font-bold text-lg shadow-xl"
+              >
+                ⚙️ Edytuj Profil
+              </button>
             </div>
+          }
+        />
 
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-4 gap-6">
-              <div className="bg-dark-800/50 rounded-xl p-4 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-1">💼 Ukończone projekty</div>
-                <div className="text-2xl font-bold text-white">0</div>
-              </div>
-              <div className="bg-dark-800/50 rounded-xl p-4 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-1">💰 Średnia stawka</div>
-                <div className="text-2xl font-bold text-accent-techGreen">€{workerProfile.hourly_rate}/h</div>
-              </div>
-              <div className="bg-dark-800/50 rounded-xl p-4 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-1">🏆 Certyfikaty</div>
-                <div className="text-2xl font-bold text-white">{certificates.length}</div>
-              </div>
-              <div className="bg-dark-800/50 rounded-xl p-4 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-1">⚡ Umiejętności</div>
-                <div className="text-2xl font-bold text-white">{skills.length}</div>
-              </div>
-            </div>
+        {/* Modern Stats Cards */}
+        <StatsGrid columns={4}>
+          <StatCard
+            title="Ukończone projekty"
+            value="0"
+            color="blue"
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            }
+          />
+          <StatCard
+            title="Średnia stawka"
+            value={`€${workerProfile.hourly_rate}/h`}
+            color="green"
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            }
+          />
+          <StatCard
+            title="Certyfikaty"
+            value={certificates.length}
+            color="purple"
+            icon={
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            }
+          />
+          <div onClick={() => setActiveView('messages')} className="cursor-pointer">
+            <StatCard
+              title="Wiadomości"
+              value={`${messages.length}${unreadCount > 0 ? ` (${unreadCount} nowe)` : ''}`}
+              color="orange"
+              icon={
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              }
+            />
           </div>
+        </StatsGrid>
 
-          {/* Quick Actions */}
-          <div className="grid grid-cols-3 gap-6 mb-8">
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <ContentCard className="cursor-pointer hover:shadow-2xl transition-all" noPadding>
             <button
               onClick={() => setActiveView('profile')}
-              className="bg-gradient-glass backdrop-blur-md rounded-xl p-6 border border-accent-cyber/20 hover:border-accent-cyber transition-all group"
+              className="w-full p-6 text-left"
             >
               <div className="text-4xl mb-3">👤</div>
-              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-accent-cyber transition-colors">Edytuj Profil</h3>
-              <p className="text-neutral-400 text-sm">Zaktualizuj swoje dane i umiejętności</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Edytuj Profil</h3>
+              <p className="text-gray-600 text-sm">Zaktualizuj swoje dane i umiejętności</p>
             </button>
+          </ContentCard>
 
+          <ContentCard className="cursor-pointer hover:shadow-2xl transition-all" noPadding>
             <button
               onClick={() => setActiveView('verification')}
-              className="bg-gradient-glass backdrop-blur-md rounded-xl p-6 border border-accent-techGreen/20 hover:border-accent-techGreen transition-all group"
+              className="w-full p-6 text-left"
             >
               <div className="text-4xl mb-3">🏆</div>
-              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-accent-techGreen transition-colors">Certyfikaty</h3>
-              <p className="text-neutral-400 text-sm">Zarządzaj certyfikatami doświadczenia</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Certyfikaty</h3>
+              <p className="text-gray-600 text-sm">Zarządzaj certyfikatami doświadczenia</p>
             </button>
+          </ContentCard>
 
+          <ContentCard className="cursor-pointer hover:shadow-2xl transition-all" noPadding>
             <button
               onClick={() => setActiveView('jobs')}
-              className="bg-gradient-glass backdrop-blur-md rounded-xl p-6 border border-purple-500/20 hover:border-purple-500 transition-all group"
+              className="w-full p-6 text-left"
             >
               <div className="text-4xl mb-3">💼</div>
-              <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-400 transition-colors">Szukaj Pracy</h3>
-              <p className="text-neutral-400 text-sm">Przeglądaj dostępne oferty</p>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Szukaj Pracy</h3>
+              <p className="text-gray-600 text-sm">Przeglądaj dostępne oferty</p>
             </button>
-          </div>
+          </ContentCard>
+        </div>
 
-          {/* Recent Activity */}
-          <div className="bg-gradient-glass backdrop-blur-md rounded-2xl shadow-glow-cyber border border-accent-techGreen/20 p-6">
-            <h2 className="text-2xl font-bold text-white mb-4">📊 Ostatnia aktywność</h2>
-            <div className="space-y-3">
-              <div className="flex items-center gap-4 p-4 bg-dark-800/50 rounded-lg border border-neutral-700">
-                <div className="text-2xl">✓</div>
-                <div className="flex-1">
-                  <div className="text-white font-medium">Profil zaktualizowany</div>
-                  <div className="text-neutral-400 text-sm">Dzisiaj o 14:30</div>
-                </div>
+        {/* Recent Activity */}
+        <ContentCard>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">📊 Ostatnia aktywność</h2>
+          <div className="space-y-3">
+            <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+              <div className="text-2xl">✓</div>
+              <div className="flex-1">
+                <div className="text-gray-900 font-medium">Profil zaktualizowany</div>
+                <div className="text-gray-600 text-sm">Dzisiaj o 14:30</div>
               </div>
-              <div className="flex items-center gap-4 p-4 bg-dark-800/50 rounded-lg border border-neutral-700">
-                <div className="text-2xl">🏆</div>
-                <div className="flex-1">
-                  <div className="text-white font-medium">Certyfikat doświadczenia dodany</div>
-                  <div className="text-neutral-400 text-sm">Wczoraj o 10:15</div>
-                </div>
+            </div>
+            <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+              <div className="text-2xl">🏆</div>
+              <div className="flex-1">
+                <div className="text-gray-900 font-medium">Certyfikat doświadczenia dodany</div>
+                <div className="text-gray-600 text-sm">Wczoraj o 10:15</div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </ContentCard>
+      </PageContainer>
     );
   };
 
@@ -693,19 +804,19 @@ export default function WorkerDashboard() {
   // ===================================================================
 
   const renderProfile = () => {
-    if (!workerProfile) return <div className="text-white">Ładowanie...</div>;
+    if (!workerProfile) return <div className="text-gray-900">Ładowanie...</div>;
 
     return (
-      <div className="min-h-screen bg-primary-dark p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-6xl mx-auto">
           {/* Header with Avatar */}
-          <div className="relative bg-gradient-to-r from-accent-cyber to-accent-techGreen h-32 rounded-2xl mb-16">
+          <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 h-32 rounded-2xl mb-16">
             <div className="absolute -bottom-12 left-8">
               <div className="relative group">
                 <img
-                  src={workerProfile.avatar_url || 'https://i.pravatar.cc/150'}
+                  src={workerProfile.avatar_url || 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + encodeURIComponent(workerProfile.full_name)}
                   alt={workerProfile.full_name}
-                  className="w-32 h-32 rounded-2xl border-4 border-dark-800"
+                  className="w-32 h-32 rounded-2xl border-4 border-white shadow-xl"
                 />
                 <label className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                   <span className="text-white text-sm">📷 Zmień</span>
@@ -714,13 +825,13 @@ export default function WorkerDashboard() {
               </div>
             </div>
             <div className="absolute -bottom-8 left-48">
-              <h1 className="text-3xl font-bold text-white">{workerProfile.full_name}</h1>
-              <p className="text-neutral-300">{workerProfile.specialization || 'Pracownik'}</p>
+              <h1 className="text-3xl font-bold text-gray-900">{workerProfile.full_name}</h1>
+              <p className="text-gray-600">{workerProfile.specialization || 'Pracownik'}</p>
             </div>
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex gap-4 mb-8 border-b border-neutral-700 overflow-x-auto">
+          <div className="flex gap-4 mb-8 border-b border-gray-200 overflow-x-auto bg-white rounded-t-2xl px-4">
             {[
               { id: 'overview', label: '📊 Przegląd' },
               { id: 'basic', label: '👤 Dane podstawowe' },
@@ -734,8 +845,8 @@ export default function WorkerDashboard() {
                 onClick={() => setActiveProfileTab(tab.id)}
                 className={`px-6 py-3 font-medium whitespace-nowrap transition-colors ${
                   activeProfileTab === tab.id
-                    ? 'text-accent-cyber border-b-2 border-accent-cyber'
-                    : 'text-neutral-400 hover:text-white'
+                    ? 'text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
                 {tab.label}
@@ -744,7 +855,7 @@ export default function WorkerDashboard() {
           </div>
 
           {/* Tab Content */}
-          <div className="bg-dark-800 rounded-2xl p-8 border border-neutral-700">
+          <div className="bg-white rounded-b-2xl shadow-xl p-8 border border-gray-200">
             {activeProfileTab === 'overview' && renderProfileOverview()}
             {activeProfileTab === 'basic' && renderProfileBasic()}
             {activeProfileTab === 'skills' && renderProfileSkills()}
@@ -763,56 +874,56 @@ export default function WorkerDashboard() {
 
     return (
       <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-white mb-6">Przegląd Profilu</h2>
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">Przegląd Profilu</h2>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-dark-700 rounded-xl p-4">
-            <div className="text-neutral-400 text-sm mb-1">Umiejętności</div>
-            <div className="text-3xl font-bold text-accent-cyber">{skills.length}</div>
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+            <div className="text-gray-600 text-sm mb-1">Umiejętności</div>
+            <div className="text-3xl font-bold text-blue-600">{skills.length}</div>
           </div>
-          <div className="bg-dark-700 rounded-xl p-4">
-            <div className="text-neutral-400 text-sm mb-1">Certyfikaty</div>
-            <div className="text-3xl font-bold text-accent-techGreen">{certificates.length}</div>
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+            <div className="text-gray-600 text-sm mb-1">Certyfikaty</div>
+            <div className="text-3xl font-bold text-green-600">{certificates.length}</div>
           </div>
-          <div className="bg-dark-700 rounded-xl p-4">
-            <div className="text-neutral-400 text-sm mb-1">Doświadczenie</div>
-            <div className="text-3xl font-bold text-purple-400">{workerProfile.years_experience} lat</div>
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+            <div className="text-gray-600 text-sm mb-1">Doświadczenie</div>
+            <div className="text-3xl font-bold text-purple-600">{workerProfile.years_experience} lat</div>
           </div>
-          <div className="bg-dark-700 rounded-xl p-4">
-            <div className="text-neutral-400 text-sm mb-1">Portfolio</div>
-            <div className="text-3xl font-bold text-blue-400">{portfolio.length}</div>
+          <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200">
+            <div className="text-gray-600 text-sm mb-1">Portfolio</div>
+            <div className="text-3xl font-bold text-indigo-600">{portfolio.length}</div>
           </div>
         </div>
 
         {/* Profile Summary */}
         <div>
-          <h3 className="text-xl font-bold text-white mb-3">O mnie</h3>
-          <p className="text-neutral-300 leading-relaxed">
+          <h3 className="text-xl font-bold text-gray-900 mb-3">O mnie</h3>
+          <p className="text-gray-700 leading-relaxed">
             {workerProfile.bio || 'Brak opisu. Dodaj krótką bio w zakładce "Dane podstawowe".'}
           </p>
         </div>
 
         {/* Recent Certificates */}
         <div>
-          <h3 className="text-xl font-bold text-white mb-3">Ostatnie certyfikaty</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-3">Ostatnie certyfikaty</h3>
           <div className="space-y-3">
             {certificates.slice(0, 3).map(cert => (
-              <div key={cert.id} className="flex items-center gap-4 p-4 bg-dark-700 rounded-lg">
+              <div key={cert.id} className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="text-3xl">🏆</div>
                 <div className="flex-1">
-                  <div className="text-white font-medium">{cert.certificate_type}</div>
-                  <div className="text-neutral-400 text-sm">{cert.issuer}</div>
+                  <div className="text-gray-900 font-medium">{cert.certificate_type}</div>
+                  <div className="text-gray-600 text-sm">{cert.issuer}</div>
                 </div>
                 {cert.verified && (
-                  <span className="bg-green-500/20 text-green-400 px-3 py-1 rounded-lg text-sm">
+                  <span className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm font-medium">
                     ✓ Zweryfikowany
                   </span>
                 )}
               </div>
             ))}
             {certificates.length === 0 && (
-              <p className="text-neutral-400 italic">Brak certyfikatów. Dodaj je w zakładce "Certyfikaty".</p>
+              <p className="text-gray-500 italic">Brak certyfikatów. Dodaj je w zakładce "Certyfikaty".</p>
             )}
           </div>
         </div>
@@ -1295,14 +1406,14 @@ export default function WorkerDashboard() {
 
   const renderPortfolio = () => {
     return (
-      <div className="min-h-screen bg-primary-dark p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-white">🎨 Moje Portfolio</h1>
+            <h1 className="text-3xl font-bold text-gray-900">🎨 Moje Portfolio</h1>
             <button
               onClick={() => openPortfolioModal()}
-              className="px-6 py-3 bg-gradient-to-r from-accent-cyber to-accent-techGreen text-white font-bold rounded-lg hover:shadow-lg hover:shadow-accent-cyber/50 transition-all"
+              className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold rounded-lg hover:shadow-lg hover:shadow-blue-500/50 transition-all"
             >
               ➕ Dodaj projekt
             </button>
@@ -1310,12 +1421,12 @@ export default function WorkerDashboard() {
 
           {/* Portfolio Grid */}
           {portfolio.length === 0 ? (
-            <div className="text-center py-16 bg-dark-800 rounded-xl border border-neutral-700">
+            <div className="text-center py-16 bg-white rounded-xl shadow-xl border border-gray-200">
               <div className="text-6xl mb-4">📂</div>
-              <p className="text-neutral-400 mb-6">Brak projektów w portfolio</p>
+              <p className="text-gray-600 mb-6">Brak projektów w portfolio</p>
               <button
                 onClick={() => openPortfolioModal()}
-                className="px-6 py-3 bg-accent-cyber text-white font-bold rounded-lg hover:shadow-lg transition-all"
+                className="px-6 py-3 bg-blue-600 text-white font-bold rounded-lg hover:shadow-lg transition-all"
               >
                 Dodaj pierwszy projekt
               </button>
@@ -1323,18 +1434,18 @@ export default function WorkerDashboard() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {portfolio.map(project => (
-                <div key={project.id} className="bg-dark-800 rounded-xl border border-neutral-700 overflow-hidden hover:border-accent-cyber transition-all group">
+                <div key={project.id} className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden hover:border-blue-500 hover:shadow-2xl transition-all group">
                   {project.image_url && (
                     <img src={project.image_url} alt={project.title} className="w-full h-48 object-cover" />
                   )}
                   <div className="p-6">
-                    <h3 className="text-xl font-bold text-white mb-2">{project.title}</h3>
-                    <p className="text-neutral-400 text-sm mb-4 line-clamp-3">{project.description}</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{project.title}</h3>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">{project.description}</p>
                     
                     {project.tags && project.tags.length > 0 && (
                       <div className="flex flex-wrap gap-2 mb-4">
                         {project.tags.map(tag => (
-                          <span key={tag} className="px-3 py-1 bg-dark-700 text-accent-techGreen text-xs rounded-full">
+                          <span key={tag} className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full font-medium">
                             {tag}
                           </span>
                         ))}
@@ -1587,46 +1698,51 @@ export default function WorkerDashboard() {
 
   const renderReviewsAndAnalytics = () => {
     return (
-      <div className="min-h-screen bg-primary-dark p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-7xl mx-auto">
           {/* Analytics Section */}
           <div className="mb-12">
-            <h1 className="text-3xl font-bold text-white mb-8">📊 Analityka</h1>
+            <h1 className="text-3xl font-bold text-gray-900 mb-8">📊 Analityka</h1>
             <div className="grid md:grid-cols-4 gap-6">
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">👁️ Wyświetlenia profilu</div>
-                <div className="text-4xl font-bold text-white">{analytics?.profile_views || 0}</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">👁️ Wyświetlenia profilu</div>
+                <div className="text-4xl font-bold text-gray-900">{analytics?.profile_views || 0}</div>
               </div>
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">📝 Wysłane aplikacje</div>
-                <div className="text-4xl font-bold text-blue-400">{analytics?.applications_sent || 0}</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">📝 Wysłane aplikacje</div>
+                <div className="text-4xl font-bold text-blue-600">{analytics?.applications_sent || 0}</div>
               </div>
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">✅ Zaakceptowane</div>
-                <div className="text-4xl font-bold text-green-400">{analytics?.applications_accepted || 0}</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">✅ Zaakceptowane</div>
+                <div className="text-4xl font-bold text-green-600">{analytics?.applications_accepted || 0}</div>
               </div>
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">⭐ Średnia ocena</div>
-                <div className="text-4xl font-bold text-yellow-400">{analytics?.average_rating?.toFixed(1) || '0.0'}</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">⭐ Średnia ocena</div>
+                <div className="text-4xl font-bold text-yellow-600">
+                  {reviews.length > 0 
+                    ? (reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length).toFixed(1)
+                    : analytics?.average_rating?.toFixed(1) || '0.0'
+                  }
+                </div>
               </div>
             </div>
 
             <div className="grid md:grid-cols-4 gap-6 mt-6">
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">✔️ Ukończone zlecenia</div>
-                <div className="text-4xl font-bold text-purple-400">{analytics?.completed_jobs || 0}</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">✔️ Ukończone zlecenia</div>
+                <div className="text-4xl font-bold text-purple-600">{analytics?.completed_jobs || 0}</div>
               </div>
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">💰 Suma zarobków</div>
-                <div className="text-4xl font-bold text-green-400">€{analytics?.total_earnings?.toFixed(2) || '0.00'}</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">💰 Suma zarobków</div>
+                <div className="text-4xl font-bold text-green-600">€{analytics?.total_earnings?.toFixed(2) || '0.00'}</div>
               </div>
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">💬 Odpowiedzi</div>
-                <div className="text-4xl font-bold text-cyan-400">{analytics?.response_rate || 0}%</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">💬 Odpowiedzi</div>
+                <div className="text-4xl font-bold text-cyan-600">{analytics?.response_rate || 0}%</div>
               </div>
-              <div className="bg-dark-800 rounded-xl p-6 border border-neutral-700">
-                <div className="text-neutral-400 text-sm mb-2">💼 Wyświetlenia ofert</div>
-                <div className="text-4xl font-bold text-orange-400">{analytics?.job_views || 0}</div>
+              <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+                <div className="text-gray-600 text-sm mb-2">💼 Wyświetlenia ofert</div>
+                <div className="text-4xl font-bold text-orange-600">{analytics?.job_views || 0}</div>
               </div>
             </div>
           </div>
@@ -1769,21 +1885,21 @@ export default function WorkerDashboard() {
 
   const renderVerification = () => {
     return (
-      <div className="min-h-screen bg-primary-dark p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-8">🏆 Certyfikaty doświadczenia</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-8">🏆 Certyfikaty doświadczenia</h1>
           
           {/* Status */}
-          <div className="bg-dark-800 rounded-2xl p-6 border border-neutral-700 mb-8">
+          <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-200 mb-8">
             <div className="flex items-center gap-4">
               <div className="text-5xl">
                 {workerProfile?.verified ? '✅' : '⏳'}
               </div>
               <div className="flex-1">
-                <h2 className="text-2xl font-bold text-white mb-2">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
                   {workerProfile?.verified ? 'Zweryfikowany' : 'Weryfikacja w toku'}
                 </h2>
-                <p className="text-neutral-400">
+                <p className="text-gray-600">
                   {workerProfile?.verified 
                     ? 'Twój profil jest zweryfikowany' 
                     : 'Dodaj certyfikaty, aby rozpocząć weryfikację'}
@@ -1800,15 +1916,128 @@ export default function WorkerDashboard() {
   };
 
   // ===================================================================
+  // MESSAGES TAB
+  // ===================================================================
+
+  const renderMessages = () => {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
+        <div className="max-w-7xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">📬 Wiadomości</h1>
+          <p className="text-gray-600 mb-8">
+            {unreadCount > 0 ? `Masz ${unreadCount} nieprzeczytanych wiadomości` : 'Brak nowych wiadomości'}
+          </p>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Messages List */}
+            <div className="lg:col-span-1 bg-white rounded-2xl shadow-xl border border-gray-200 p-6 max-h-[800px] overflow-y-auto">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Skrzynka odbiorcza</h2>
+              
+              {messages.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">Brak wiadomości</p>
+              ) : (
+                <div className="space-y-2">
+                  {messages.map(msg => (
+                    <button
+                      key={msg.id}
+                      onClick={() => {
+                        setSelectedMessage(msg);
+                        if (!msg.is_read) handleMarkAsRead(msg.id);
+                      }}
+                      className={`w-full text-left p-4 rounded-lg transition-all ${
+                        selectedMessage?.id === msg.id 
+                          ? 'bg-blue-100 border border-blue-500' 
+                          : msg.is_read
+                          ? 'bg-gray-50 border border-transparent hover:border-gray-300'
+                          : 'bg-green-50 border border-green-300 hover:border-green-500'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <span className={`font-semibold ${msg.is_read ? 'text-gray-900' : 'text-green-700'}`}>
+                          {msg.sender_profile?.full_name || 'Nieznany nadawca'}
+                        </span>
+                        {!msg.is_read && (
+                          <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-700 mb-1 truncate">{msg.subject}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(msg.created_at).toLocaleDateString('pl-PL')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Message Detail */}
+            <div className="lg:col-span-2 bg-dark-800 rounded-2xl border border-neutral-700 p-6">
+              {!selectedMessage ? (
+                <div className="flex items-center justify-center h-full text-neutral-400">
+                  Wybierz wiadomość aby ją przeczytać
+                </div>
+              ) : (
+                <div>
+                  <div className="mb-6 pb-6 border-b border-neutral-700">
+                    <h2 className="text-2xl font-bold text-white mb-2">{selectedMessage.subject}</h2>
+                    <div className="flex items-center gap-4 text-sm text-neutral-400">
+                      <span>Od: {selectedMessage.sender_profile?.full_name}</span>
+                      <span>•</span>
+                      <span>{new Date(selectedMessage.created_at).toLocaleString('pl-PL')}</span>
+                    </div>
+                  </div>
+
+                  <div className="mb-6 text-neutral-300 whitespace-pre-wrap">
+                    {selectedMessage.content}
+                  </div>
+
+                  {/* Reply Form */}
+                  <div className="bg-dark-700 rounded-xl p-6 border border-neutral-600">
+                    <h3 className="text-lg font-semibold text-white mb-4">Odpowiedz</h3>
+                    <textarea
+                      value={replyContent}
+                      onChange={(e) => setReplyContent(e.target.value)}
+                      placeholder="Wpisz swoją odpowiedź..."
+                      className="w-full bg-dark-800 border border-neutral-600 rounded-lg p-4 text-white placeholder-neutral-500 focus:border-accent-cyber focus:ring-2 focus:ring-accent-cyber/50 min-h-[120px]"
+                    />
+                    <div className="flex justify-end gap-3 mt-4">
+                      <button
+                        onClick={() => {
+                          setSelectedMessage(null);
+                          setReplyContent('');
+                        }}
+                        className="px-6 py-2 bg-dark-800 text-neutral-300 rounded-lg hover:bg-dark-600 transition-colors"
+                      >
+                        Anuluj
+                      </button>
+                      <button
+                        onClick={handleSendReply}
+                        disabled={saving || !replyContent.trim()}
+                        className="px-6 py-2 bg-accent-cyber text-white rounded-lg hover:bg-accent-cyber/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {saving ? 'Wysyłanie...' : 'Wyślij odpowiedź'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // ===================================================================
   // SUBSCRIPTION TAB
   // ===================================================================
 
   const renderSubscription = () => {
     return (
-      <div className="min-h-screen bg-primary-dark p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold text-white mb-2">💳 Moja Subskrypcja</h1>
-          <p className="text-neutral-400 mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">💳 Moja Subskrypcja</h1>
+          <p className="text-gray-600 mb-8">
             Zarządzaj swoją subskrypcją i zobacz historię płatności
           </p>
           
@@ -1881,13 +2110,12 @@ export default function WorkerDashboard() {
       {/* Tab Navigation */}
       <TabNavigation
         tabs={[
-          { id: 'overview', label: '📊 Przegląd', icon: '📊' },
+          { id: 'feed', label: '📰 Tablica', icon: '📰' },
+          { id: 'overview', label: '📊 Mój Panel', icon: '📊' },
           { id: 'profile', label: '👤 Mój Profil', icon: '👤' },
           { id: 'portfolio', label: '🎨 Portfolio', icon: '🎨' },
+          { id: 'messages', label: unreadCount > 0 ? `📬 Wiadomości (${unreadCount})` : '📬 Wiadomości', icon: '📬' },
           { id: 'subscription', label: '💳 Subskrypcja', icon: '💳' },
-          { id: 'jobs', label: '💼 Oferty', icon: '💼' },
-          { id: 'applications', label: '📝 Aplikacje', icon: '📝' },
-          { id: 'earnings', label: '💰 Zarobki', icon: '💰' },
           { id: 'reviews', label: '⭐ Opinie & Analityka', icon: '⭐' },
           { id: 'verification', label: '🏆 Certyfikaty', icon: '🏆' },
         ]}

@@ -3,11 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { NotificationBell } from '../components/NotificationBell';
+import { useInvites } from '../src/hooks/useInvites';
 
 export const AuthenticatedLayout = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { pendingCount } = useInvites();
 
   const handleLogout = () => {
     logout();
@@ -28,17 +30,33 @@ export const AuthenticatedLayout = () => {
           { to: '/admin/certificates', label: 'Certyfikaty' },
           { to: '/admin/scheduler', label: 'Harmonogram' },
           { to: '/admin/enterprise-integration', label: 'Enterprise' },
+          { to: '/invoices', label: '📄 Faktury' },
         ];
       case 'employer':
         return [
-          { to: '/employer', label: 'Dashboard' },
+          { to: '/employer', label: 'Panel' },
+          { to: '/feed', label: 'Tablica' },
+          { to: '/team', label: '👥 Drużyna' },
           { to: '/employer/search', label: 'Wyszukaj pracowników' },
-          { to: '/employer/subscription', label: 'Subskrypcja' },
+          { to: '/accountants', label: 'Księgowi' },
+          { to: '/employer/subscription', label: 'Subskrypcje' },
+          { to: '/invoices', label: '📄 Faktury' },
         ];
       case 'worker':
         return [
-          { to: '/worker', label: 'Dashboard' },
-          { to: '/worker/profile', label: 'Mój profil' },
+          { to: '/worker', label: 'Tablica' },
+          { to: '/team', label: '👥 Drużyna' },
+          { to: '/accountants', label: 'Znajdź Księgowego' },
+          { to: '/employers', label: 'Znajdź Pracodawcę' },
+          { to: '/invoices', label: '📄 Faktury' },
+        ];
+      case 'accountant':
+        return [
+          { to: '/accountant/dashboard', label: 'Tablica' },
+          { to: '/team', label: '👥 Drużyna' },
+          { to: '/employers', label: 'Wyszukaj Pracodawcę' },
+          { to: '/workers', label: 'Wyszukaj Pracownika' },
+          { to: '/invoices', label: '📄 Faktury' },
         ];
       default:
         return [];
@@ -70,6 +88,11 @@ export const AuthenticatedLayout = () => {
                   className="px-4 py-2 text-neutral-300 hover:text-accent-cyber hover:bg-accent-cyber/10 rounded-xl font-medium transition-all relative group"
                 >
                   {item.label}
+                  {item.to === '/team' && pendingCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center shadow-lg">
+                      {pendingCount}
+                    </span>
+                  )}
                   <span className="absolute bottom-1 left-4 right-4 h-0.5 bg-accent-cyber scale-x-0 group-hover:scale-x-100 transition-transform"></span>
                 </Link>
               ))}

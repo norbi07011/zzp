@@ -21,7 +21,19 @@ import { ContactPage } from './pages/public/ContactPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterEmployerPage } from './pages/public/RegisterEmployerPage';
 import { RegisterWorkerPage } from './pages/public/RegisterWorkerPage';
+import { RegisterAccountantPage } from './pages/public/RegisterAccountantPage';
 import { LegalPage } from './pages/public/LegalPage';
+
+// Accountant pages
+import AccountantRegistration from './pages/AccountantRegistration';
+import AccountantDashboard from './pages/accountant/AccountantDashboard';
+import AccountantProfilePage from './pages/public/AccountantProfilePage';
+import AccountantSearchPage from './pages/public/AccountantSearchPage';
+import EmployerSearchPage from './pages/public/EmployerSearchPage';
+import EmployerPublicProfilePage from './pages/public/EmployerPublicProfilePage';
+import WorkerPublicProfilePage from './pages/public/WorkerPublicProfilePage';
+import FeedPage from './pages/FeedPage';
+import TeamDashboard from './components/TeamDashboard';
 
 // Admin pages (LAZY LOADED - 70% bundle reduction!)
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
@@ -72,15 +84,22 @@ const AvatarUploadTest = lazy(() => import('./src/pages/AvatarUploadTest'));
 const SupabaseAuthTest = lazy(() => import('./src/pages/SupabaseAuthTest'));
 const AdvancedUIDemo = lazy(() => import('./pages/AdvancedUIDemo'));
 const ErrorHandlingUXDemo = lazy(() => import('./pages/ErrorHandlingUXDemo'));
+const TestCommunicationPage = lazy(() => import('./pages/TestCommunicationPage').then(m => ({ default: m.TestCommunicationPage })));
+const TestRealtimeCommunicationPage = lazy(() => import('./pages/TestRealtimeCommunicationPage').then(m => ({ default: m.TestRealtimeCommunicationPage })));
 
 // Employer pages (LAZY LOADED)
 const WorkerSearch = lazy(() => import('./pages/employer/WorkerSearch').then(m => ({ default: m.WorkerSearch })));
 const SubscriptionManager = lazy(() => import('./pages/employer/SubscriptionManager').then(m => ({ default: m.SubscriptionManager })));
 const EmployerDashboard = lazy(() => import('./pages/employer/EmployerDashboard').then(m => ({ default: m.EmployerDashboard })));
+const EmployerProfile = lazy(() => import('./pages/employer/EmployerProfile'));
+const EditEmployerProfile = lazy(() => import('./pages/employer/EditEmployerProfile'));
 
 // Worker pages (LAZY LOADED)
 const WorkerDashboard = lazy(() => import('./pages/WorkerDashboard'));
 const WorkerSubscriptionSelectionPage = lazy(() => import('./pages/worker/WorkerSubscriptionSelectionPage'));
+
+// Invoice Module (LAZY LOADED)
+const InvoiceApp = lazy(() => import('./src/modules/invoices').then(m => ({ default: m.InvoiceApp })));
 
 function App() {
   return (
@@ -105,6 +124,11 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/register/employer" element={<RegisterEmployerPage />} />
                     <Route path="/register/worker" element={<RegisterWorkerPage />} />
+                    <Route path="/register/accountant" element={<RegisterAccountantPage />} />
+                    {/* Public profile pages - beautiful full panels */}
+                    <Route path="/employer/:id" element={<EmployerPublicProfilePage />} />
+                    <Route path="/accountant/profile/:id" element={<AccountantProfilePage />} />
+                    <Route path="/worker/profile/:id" element={<WorkerPublicProfilePage />} />
                     {/* Legacy routes - redirect to new structure */}
                     <Route path="/register-employer" element={<Navigate to="/register/employer" replace />} />
                     <Route path="/register-worker" element={<Navigate to="/register/worker" replace />} />
@@ -113,8 +137,32 @@ function App() {
                     <Route path="/exam-success" element={<ExamSuccessPage />} />
                     <Route path="/test/auth" element={<SupabaseAuthTest />} />
                     <Route path="/test/avatar-upload" element={<AvatarUploadTest />} />
+                    <Route path="/test/communication" element={<TestCommunicationPage />} />
+                    <Route path="/test/communication-realtime" element={<TestRealtimeCommunicationPage />} />
                     <Route path="/advanced-ui-demo" element={<AdvancedUIDemo />} />
                     <Route path="/error-handling-demo" element={<ErrorHandlingUXDemo />} />
+                </Route>
+
+                {/* Protected Search Routes - require login */}
+                <Route element={<AuthenticatedLayout />}>
+                    <Route path="/feed" element={<FeedPage />} />
+                    <Route path="/team" element={<TeamDashboard />} />
+                    <Route path="/accountants" element={<AccountantSearchPage />} />
+                    <Route path="/employers" element={<EmployerSearchPage />} />
+                    <Route path="/workers" element={
+                        <ProtectedRoute>
+                            <WorkerSearch />
+                        </ProtectedRoute>
+                    } />
+                </Route>
+
+                {/* Accountant Routes */}
+                <Route element={<AuthenticatedLayout />}>
+                    <Route path="/accountant/dashboard" element={
+                        <ProtectedRoute requiredRole="accountant">
+                            <AccountantDashboard />
+                        </ProtectedRoute>
+                    } />
                 </Route>
 
                 {/* Admin routes (LAZY LOADED) */}
@@ -172,17 +220,28 @@ function App() {
                   }
                 />
                 
-                {/* Protected employer routes - require active subscription */}
+                {/* Protected employer routes - profile doesn't require subscription */}
                 <Route
                   path="/employer"
                   element={
-                    <ProtectedRoute requiredRole="employer" requireSubscription={true}>
+                    <ProtectedRoute requiredRole="employer">
                       <AuthenticatedLayout />
                     </ProtectedRoute>
                   }
                 >
                   <Route index element={<EmployerDashboard />} />
-                  <Route path="search" element={<WorkerSearch />} />
+                  <Route path="profile" element={<EmployerProfile />} />
+                  <Route path="profile/edit" element={<EditEmployerProfile />} />
+                  
+                  {/* Search requires subscription */}
+                  <Route 
+                    path="search" 
+                    element={
+                      <ProtectedRoute requiredRole="employer" requireSubscription={true}>
+                        <WorkerSearch />
+                      </ProtectedRoute>
+                    } 
+                  />
                 </Route>
 
                 {/* Worker routes (LAZY LOADED) */}
@@ -198,6 +257,16 @@ function App() {
                   <Route path="zzp-exam-application" element={<ZZPExamApplicationPage />} />
                   <Route path="subscription-selection" element={<WorkerSubscriptionSelectionPage />} />
                 </Route>
+
+                {/* Invoice Module - available for all authenticated users */}
+                <Route
+                  path="/invoices/*"
+                  element={
+                    <ProtectedRoute>
+                      <InvoiceApp />
+                    </ProtectedRoute>
+                  }
+                />
 
                 {/* 404 */}
                 <Route path="*" element={<Navigate to="/" replace />} />

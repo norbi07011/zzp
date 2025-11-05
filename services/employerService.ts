@@ -17,14 +17,8 @@ import type { Database } from '@/lib/database.types';
 type EmployersRow = Database['public']['Tables']['employers']['Row'];
 type EmployersUpdate = Database['public']['Tables']['employers']['Update'];
 
-// WHY: extend Row type with subscription fields (these columns exist in DB but not yet in generated types)
-// TODO: regenerate database.types.ts after schema is stable
-export interface EmployerProfile extends EmployersRow {
-  subscription_tier?: string | null;
-  subscription_status?: string | null;
-  subscription_started_at?: string | null;
-  subscription_expires_at?: string | null;
-}
+// Use the basic EmployersRow type since subscription fields don't exist in current schema
+export type EmployerProfile = EmployersRow;
 
 // WHY: these tables (employer_stats, employer_search_history, employer_saved_workers, messages) 
 // are not yet in database.types.ts - keep manual interfaces until types are regenerated
@@ -40,30 +34,32 @@ export interface EmployerStats {
 
 export interface SearchHistoryItem {
   id: string;
-  search_date: string;
-  category: string;
+  search_date: string | null;
+  category: string | null;
   level: string | null;
-  location_city: string | null;
-  results_count: number;
+  location: string | null; // Changed from location_city to match DB structure
+  postal_code?: string | null;
+  radius_km?: number | null;
+  results_count: number | null;
 }
 
 export interface SavedWorker {
   id: string;
   worker_id: string;
-  saved_at: string;
+  saved_at: string | null;
   notes: string | null;
-  tags: string[];
+  tags: string[] | null;
   // Joined worker data
   worker: {
     id: string;
-    specialization: string;
-    hourly_rate: number;
-    rating: number;
-    rating_count: number;
-    location_city: string;
+    specialization: string | null;
+    hourly_rate: number | null;
+    rating: number | null;
+    rating_count: number | null;
+    location_city: string | null;
     profile: {
-      full_name: string;
-      avatar_url: string | null;
+      full_name: string | null;
+      avatar_url?: string | null;
     };
   };
 }
@@ -72,13 +68,30 @@ export interface Message {
   id: string;
   sender_id: string;
   recipient_id: string;
-  subject: string;
+  subject: string | null;
   content: string;
-  read: boolean;
-  created_at: string;
+  is_read: boolean | null;
+  created_at: string | null;
   sender_profile: {
-    full_name: string;
-    avatar_url: string | null;
+    full_name: string | null;
+    avatar_url?: string | null;
+  };
+}
+
+export interface EmployerReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  status: string | null;
+  created_at: string | null;
+  // Joined worker data
+  worker: {
+    id: string;
+    specialization: string | null;
+    profile: {
+      full_name: string | null;
+      avatar_url?: string | null;
+    };
   };
 }
 
@@ -91,15 +104,15 @@ export interface Message {
  */
 export async function getEmployerByUserId(userId: string): Promise<EmployerProfile | null> {
   try {
-    // WHY: .maybeSingle() instead of .single() to prevent 406 when no employer record exists
+    // WHY: check both user_id and profile_id for backwards compatibility
     const { data, error } = await supabase
       .from('employers')
       .select('*')
-      .eq('profile_id', userId)
+      .or(`user_id.eq.${userId},profile_id.eq.${userId}`)
       .maybeSingle();
 
     if (error) throw error;
-    console.log('[SUBS-GUARD] getEmployerByUserId:', { userId, has_data: !!data });
+    console.log('[EMPLOYER-SERVICE] getEmployerByUserId:', { userId, has_data: !!data, employer_id: data?.id });
     return data;
   } catch (error) {
     console.error('Error fetching employer profile:', error);
@@ -138,56 +151,87 @@ export async function updateEmployerProfile(
  */
 export async function getEmployerStats(employerId: string): Promise<EmployerStats | null> {
   try {
-    // WHY: .maybeSingle() instead of .single() - no error if stats don't exist yet
-    const { data: stats, error: statsError } = await supabase
-      .from('employer_stats')
+    console.log('[EMPLOYER-SERVICE] Getting stats for employer:', employerId);
+    
+    // Get employer data for subscription info
+    const { data: employer } = await supabase
+      .from('employers')
+      .select('*')
+      .eq('id', employerId)
+      .single();
+
+    if (!employer) {
+      console.error('[EMPLOYER-SERVICE] Employer not found:', employerId);
+      return getDefaultStats();
+    }
+
+    // Get search history count (cast to any - new table not in types)
+    const { count: totalSearches } = await (supabase
+      .from('search_history') as any)
+      .select('*', { count: 'exact', head: true })
+      .eq('employer_id', employerId);
+
+    // Get searches this month
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
+    const { count: searchesThisMonth } = await (supabase
+      .from('search_history') as any)
+      .select('*', { count: 'exact', head: true })
+      .eq('employer_id', employerId)
+      .gte('created_at', firstDayOfMonth.toISOString());
+
+    // Get saved workers count (cast to any - new table not in types)
+    const { count: savedWorkers } = await (supabase
+      .from('saved_workers') as any)
+      .select('*', { count: 'exact', head: true })
+      .eq('employer_id', employerId);
+
+    // Get messages count (as contacts)
+    const { count: totalContacts } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('sender_id', (employer as any).user_id || employer.profile_id);
+
+    // Get contacts this month
+    const { count: contactsThisMonth } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('sender_id', (employer as any).user_id || employer.profile_id)
+      .gte('created_at', firstDayOfMonth.toISOString());
+
+    // Get subscription info (cast to any - new table not in types)
+    const { data: subscription } = await (supabase
+      .from('subscriptions') as any)
       .select('*')
       .eq('employer_id', employerId)
+      .eq('status', 'active')
+      .order('end_date', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
-    if (statsError) {
-      throw statsError;
-    }
+    const subscriptionExpiresAt = subscription?.end_date || (employer as any).subscription_expires_at;
+    const daysUntilExpiry = subscriptionExpiresAt
+      ? Math.ceil((new Date(subscriptionExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+      : 0;
 
-    // If no stats exist, initialize them
-    if (!stats) {
-      // WHY: cast RPC to any because function signatures not in database.types.ts
-      await (supabase.rpc as any)('update_employer_stats', { p_employer_id: employerId });
-      
-      // Fetch again
-      // WHY: cast to any - employer_stats table not in database.types.ts
-      const { data: newStats } = await (supabase
-        .from('employer_stats') as any)
-        .select('*')
-        .eq('employer_id', employerId)
-        .maybeSingle();
-      
-      if (newStats) {
-        return formatStats(newStats);
-      }
-    }
+    const stats: EmployerStats = {
+      total_searches: totalSearches || 0,
+      searches_this_month: searchesThisMonth || 0,
+      total_saved_workers: savedWorkers || 0,
+      total_contacts: totalContacts || 0,
+      contacts_this_month: contactsThisMonth || 0,
+      subscription_expires_at: subscriptionExpiresAt,
+      days_until_expiry: Math.max(0, daysUntilExpiry),
+    };
 
-    return stats ? formatStats(stats) : getDefaultStats();
+    console.log('[EMPLOYER-SERVICE] Stats:', stats);
+    return stats;
   } catch (error) {
-    console.error('Error fetching employer stats:', error);
+    console.error('[EMPLOYER-SERVICE] Error fetching employer stats:', error);
     return getDefaultStats();
   }
-}
-
-function formatStats(stats: any): EmployerStats {
-  const daysUntilExpiry = stats.subscription_expires_at
-    ? Math.ceil((new Date(stats.subscription_expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : 0;
-
-  return {
-    total_searches: stats.total_searches || 0,
-    searches_this_month: stats.searches_this_month || 0,
-    total_saved_workers: stats.total_saved_workers || 0,
-    total_contacts: stats.total_contacts || 0,
-    contacts_this_month: stats.contacts_this_month || 0,
-    subscription_expires_at: stats.subscription_expires_at,
-    days_until_expiry: daysUntilExpiry,
-  };
 }
 
 function getDefaultStats(): EmployerStats {
@@ -214,9 +258,10 @@ export async function getSearchHistory(
   limit: number = 10
 ): Promise<SearchHistoryItem[]> {
   try {
-    const { data, error } = await supabase
-      .from('employer_search_history')
-      .select('id, search_date, category, level, location_city, results_count')
+    // WHY: Using new search_history table (as any) - not yet in database.types.ts
+    const { data, error } = await (supabase
+      .from('search_history') as any)
+      .select('id, search_date, category, level, location, postal_code, radius_km, results_count')
       .eq('employer_id', employerId)
       .order('search_date', { ascending: false })
       .limit(limit);
@@ -237,7 +282,8 @@ export async function addSearchToHistory(
   searchParams: {
     category: string;
     level?: string;
-    location_city?: string;
+    location?: string; // Changed from location_city
+    postal_code?: string;
     radius_km?: number;
     min_hourly_rate?: number;
     max_hourly_rate?: number;
@@ -246,9 +292,9 @@ export async function addSearchToHistory(
   }
 ): Promise<boolean> {
   try {
-    // WHY: cast to any - employer_search_history table not in database.types.ts
+    // WHY: Using new search_history table (as any) - not yet in database.types.ts
     const { error } = await (supabase
-      .from('employer_search_history') as any)
+      .from('search_history') as any)
       .insert({
         employer_id: employerId,
         ...searchParams,
@@ -267,8 +313,9 @@ export async function addSearchToHistory(
  */
 export async function deleteSearchFromHistory(searchId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('employer_search_history')
+    // WHY: Using new search_history table (as any) - not yet in database.types.ts
+    const { error } = await (supabase
+      .from('search_history') as any)
       .delete()
       .eq('id', searchId);
 
@@ -289,8 +336,10 @@ export async function deleteSearchFromHistory(searchId: string): Promise<boolean
  */
 export async function getSavedWorkers(employerId: string): Promise<SavedWorker[]> {
   try {
-    const { data, error } = await supabase
-      .from('employer_saved_workers')
+    // WHY: Using new saved_workers table (as any) - not yet in database.types.ts
+    // WHY: workers(profile_id) explicitly specifies which foreign key to use for profiles join
+    const { data, error } = await (supabase
+      .from('saved_workers') as any)
       .select(`
         id,
         worker_id,
@@ -304,7 +353,7 @@ export async function getSavedWorkers(employerId: string): Promise<SavedWorker[]
           rating,
           rating_count,
           location_city,
-          profile:profiles!inner(
+          profile:profiles!workers_profile_id_fkey(
             full_name,
             avatar_url
           )
@@ -331,9 +380,9 @@ export async function saveWorker(
   tags?: string[]
 ): Promise<boolean> {
   try {
-    // WHY: cast to any - employer_saved_workers table not in database.types.ts
+    // WHY: Using new saved_workers table (as any) - not yet in database.types.ts
     const { error } = await (supabase
-      .from('employer_saved_workers') as any)
+      .from('saved_workers') as any)
       .insert({
         employer_id: employerId,
         worker_id: workerId,
@@ -354,8 +403,9 @@ export async function saveWorker(
  */
 export async function removeSavedWorker(savedWorkerId: string): Promise<boolean> {
   try {
-    const { error } = await supabase
-      .from('employer_saved_workers')
+    // WHY: Using new saved_workers table (as any) - not yet in database.types.ts
+    const { error } = await (supabase
+      .from('saved_workers') as any)
       .delete()
       .eq('id', savedWorkerId);
 
@@ -375,9 +425,9 @@ export async function isWorkerSaved(
   workerId: string
 ): Promise<boolean> {
   try {
-    // WHY: .maybeSingle() instead of .single() - returns null if worker not saved
-    const { data, error } = await supabase
-      .from('employer_saved_workers')
+    // WHY: Using new saved_workers table (as any), .maybeSingle() returns null if worker not saved
+    const { data, error } = await (supabase
+      .from('saved_workers') as any)
       .select('id')
       .eq('employer_id', employerId)
       .eq('worker_id', workerId)
@@ -412,11 +462,10 @@ export async function getMessages(
         recipient_id,
         subject,
         content,
-        read,
+        is_read,
         created_at,
         sender_profile:profiles!sender_id(
-          full_name,
-          avatar_url
+          full_name
         )
       `)
       .eq('recipient_id', userId)
@@ -424,13 +473,13 @@ export async function getMessages(
       .limit(limit);
 
     if (unreadOnly) {
-      query = query.eq('read', false);
+      query = query.eq('is_read', false);
     }
 
     const { data, error } = await query;
 
     if (error) throw error;
-    return data || [];
+    return (data || []) as any; // Type cast needed - is_read column not in generated types
   } catch (error) {
     console.error('Error fetching messages:', error);
     return [];
@@ -446,7 +495,7 @@ export async function getUnreadMessageCount(userId: string): Promise<number> {
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .eq('recipient_id', userId)
-      .eq('read', false);
+      .eq('is_read', false);
 
     if (error) throw error;
     return count || 0;
@@ -464,7 +513,7 @@ export async function markMessageAsRead(messageId: string): Promise<boolean> {
     // WHY: cast to any - messages table not in database.types.ts
     const { error } = await (supabase
       .from('messages') as any)
-      .update({ read: true, read_at: new Date().toISOString() })
+      .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('id', messageId);
 
     if (error) throw error;
@@ -504,6 +553,42 @@ export async function sendMessage(
 }
 
 // =====================================================
+// REVIEWS WRITTEN BY EMPLOYER
+// =====================================================
+
+/**
+ * Get all reviews written by this employer
+ */
+export async function getEmployerReviews(employerId: string): Promise<EmployerReview[]> {
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .select(`
+        id,
+        rating,
+        comment,
+        status,
+        created_at,
+        worker:workers!reviews_worker_id_fkey(
+          id,
+          specialization,
+          profile:profiles!workers_user_id_fkey(
+            full_name
+          )
+        )
+      `)
+      .eq('employer_id', employerId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data || []) as any; // Type cast needed - new joins not in generated types
+  } catch (error) {
+    console.error('Error fetching employer reviews:', error);
+    return [];
+  }
+}
+
+// =====================================================
 // EXPORT ALL
 // =====================================================
 
@@ -531,6 +616,9 @@ const employerService = {
   getUnreadMessageCount,
   markMessageAsRead,
   sendMessage,
+  
+  // Reviews
+  getEmployerReviews,
 };
 
 export default employerService;

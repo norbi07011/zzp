@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { Modal } from '../../components/Modal';
 import { useToasts } from '../../contexts/ToastContext';
 import { SubscriptionBadge } from '../../src/components/SubscriptionBadge';
+import { ReviewWorkerModal } from '../../src/components/employer/ReviewWorkerModal';
+import { WorkerReviews } from '../../src/components/WorkerReviews'; // NEW: Worker reviews display
 import type { SubscriptionTier } from '../../src/types/subscription';
+import { fetchWorkers, type WorkerWithProfile } from '../../src/services/workers';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
+import { AddToTeamButton } from '../../components/AddToTeamButton';
 
 interface Worker {
   id: string;
+  profile_id?: string; // ✅ NEW: Profile ID for FK constraints
   fullName: string;
   photo: string;
   categories: Array<{
@@ -156,7 +164,14 @@ const WORK_LANGUAGES = [
 export const WorkerSearch = () => {
   const { t } = useTranslation();
   const { success, error: showError } = useToasts();
-  const [workers] = useState<Worker[]>(MOCK_WORKERS);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  
+  // NEW: Load real workers from database
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [employerId, setEmployerId] = useState<string | null>(null); // NEW: Store employer ID
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterLevel, setFilterLevel] = useState<string[]>([]);
@@ -173,9 +188,82 @@ export const WorkerSearch = () => {
   // Modal states
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<Worker | null>(null);
   const [contactMessage, setContactMessage] = useState('');
   const [contactSubject, setContactSubject] = useState('');
+
+  // NEW: Fetch employer ID on mount
+  useEffect(() => {
+    async function fetchEmployerId() {
+      if (!user) return;
+      
+      try {
+        const { getEmployerByUserId } = await import('../../services/employerService');
+        const employer = await getEmployerByUserId(user.id);
+        
+        if (employer) {
+          setEmployerId(employer.id);
+          console.log('[WORKER-SEARCH] Employer ID:', employer.id);
+        } else {
+          console.warn('[WORKER-SEARCH] No employer found for user:', user.id);
+        }
+      } catch (err) {
+        console.error('[WORKER-SEARCH] Error fetching employer ID:', err);
+      }
+    }
+    
+    fetchEmployerId();
+  }, [user]);
+
+  // NEW: Fetch workers from database on component mount
+  useEffect(() => {
+    async function loadWorkers() {
+      try {
+        setLoading(true);
+        const workersData = await fetchWorkers();
+        
+        // Transform database workers to match Worker interface
+        const transformedWorkers: Worker[] = workersData.map((w: WorkerWithProfile) => ({
+          id: w.id,
+          profile_id: w.profile_id, // ✅ NEW: Include profile_id for FK constraints
+          fullName: w.profile?.full_name || 'Unknown',
+          photo: w.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(w.id)}`,
+          categories: [
+            {
+              category: w.specialization || 'other',
+              level: 'Mid' as const, // Default level - TODO: add experience_level to workers table
+              yearsExperience: w.experience_years || 0,
+              preferredRate: w.hourly_rate || 0
+            }
+          ],
+          city: w.location_city || 'Unknown',
+          workLanguages: w.languages || ['nl'],
+          rating: w.rating || 0,
+          reviewsCount: w.rating_count || 0,
+          certificateId: w.zzp_certificate_number || 'N/A',
+          availability: 'active' as const, // TODO: add available column
+          subscription_tier: (w.subscription_tier as SubscriptionTier) || 'basic',
+          zzp_certificate_issued: w.zzp_certificate_issued || false,
+          zzp_certificate_number: w.zzp_certificate_number || null,
+          email: w.profile?.email,
+          phone: w.phone || undefined,
+          bio: w.bio || undefined,
+          skills: w.certifications || []
+        }));
+        
+        setWorkers(transformedWorkers);
+        console.log('[WORKER-SEARCH] Loaded workers:', transformedWorkers.length);
+      } catch (err) {
+        console.error('[WORKER-SEARCH] Error loading workers:', err);
+        showError('Nie udało się załadować pracowników');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadWorkers();
+  }, []);
 
   const filteredWorkers = workers.filter(worker => {
     const matchesSearch = 
@@ -243,9 +331,24 @@ export const WorkerSearch = () => {
     );
   };
 
-  const handleOpenProfile = (worker: Worker) => {
-    setSelectedWorker(worker);
-    setIsProfileModalOpen(true);
+  const handleOpenProfile = async (worker: Worker) => {
+    // Navigate to full profile page instead of modal
+    navigate(`/worker/profile/${worker.id}`);
+
+    // Increment profile view count
+    try {
+      const { error } = await supabase.rpc('increment_profile_views' as any, {
+        p_worker_id: worker.id
+      });
+
+      if (error) {
+        console.error('Error incrementing profile views:', error);
+      } else {
+        console.log('✅ Profile view counted for worker:', worker.fullName);
+      }
+    } catch (err) {
+      console.error('Error calling increment_profile_views:', err);
+    }
   };
 
   const handleOpenContact = (worker: Worker) => {
@@ -264,6 +367,17 @@ export const WorkerSearch = () => {
     setIsContactModalOpen(false);
     setContactSubject('');
     setContactMessage('');
+  };
+
+  // NEW: Handle opening review modal
+  const handleOpenReview = (worker: Worker) => {
+    setSelectedWorker(worker);
+    setIsReviewModalOpen(true);
+  };
+
+  // NEW: Handle successful review submission
+  const handleReviewSuccess = () => {
+    success(`✅ Dziękujemy za wystawienie opinii dla ${selectedWorker?.fullName}!`);
   };
 
   return (
@@ -454,6 +568,49 @@ export const WorkerSearch = () => {
             </div>
 
             {/* Workers Grid */}
+            {loading ? (
+              <div className="col-span-full flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mb-4"></div>
+                  <p className="text-gray-600">Ładowanie pracowników...</p>
+                </div>
+              </div>
+            ) : workers.length === 0 ? (
+              <div className="col-span-full bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-gray-400 mb-4">
+                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Brak pracowników</h3>
+                <p className="text-gray-600">Nie znaleziono żadnych pracowników w bazie danych.</p>
+              </div>
+            ) : currentWorkers.length === 0 ? (
+              <div className="col-span-full bg-white rounded-lg shadow p-8 text-center">
+                <div className="text-gray-400 mb-4">
+                  <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Brak wyników</h3>
+                <p className="text-gray-600">Nie znaleziono pracowników spełniających wybrane kryteria.</p>
+                <button
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterCategory('all');
+                    setFilterLevel([]);
+                    setFilterCity('');
+                    setFilterLanguages([]);
+                    setRateMin(5);
+                    setRateMax(200);
+                    setFilterSubscriptionTier('all');
+                  }}
+                  className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                >
+                  Wyczyść filtry
+                </button>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
               {currentWorkers.map(worker => (
                 <div key={worker.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow p-6">
@@ -541,31 +698,44 @@ export const WorkerSearch = () => {
                   </p>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleOpenContact(worker)}
-                      disabled={worker.availability === 'busy'}
-                      className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm ${
-                        worker.availability === 'busy'
-                          ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                          : 'bg-orange-600 text-white hover:bg-orange-700'
-                      }`}
-                    >
-                      {worker.availability === 'busy' ? 'Niedostępny' : 'Kontakt'}
-                    </button>
-                    <button 
-                      onClick={() => handleOpenProfile(worker)}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-                    >
-                      Profil
-                    </button>
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleOpenContact(worker)}
+                        disabled={worker.availability === 'busy'}
+                        className={`flex-1 px-4 py-2 rounded-lg font-medium text-sm ${
+                          worker.availability === 'busy'
+                            ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                            : 'bg-orange-600 text-white hover:bg-orange-700'
+                        }`}
+                      >
+                        {worker.availability === 'busy' ? 'Niedostępny' : 'Kontakt'}
+                      </button>
+                      <button 
+                        onClick={() => handleOpenProfile(worker)}
+                        className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Profil
+                      </button>
+                    </div>
+                    
+                    {/* ✅ NEW: Add to Team Button */}
+                    <AddToTeamButton 
+                      userId={worker.profile_id || worker.id}
+                      userEmail={worker.email}
+                      userType="worker"
+                      displayName={worker.fullName}
+                      avatarUrl={worker.photo}
+                      className="w-full text-sm"
+                    />
                   </div>
                 </div>
               ))}
             </div>
+            )}
 
             {/* Pagination */}
-            {totalPages > 1 && (
+            {!loading && totalPages > 1 && (
               <div className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
                 <button
                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -694,6 +864,11 @@ export const WorkerSearch = () => {
               <p className="text-sm text-orange-800">📱 {selectedWorker.phone}</p>
               <p className="text-sm text-orange-800 mt-2">🔖 Certyfikat: <span className="font-mono">{selectedWorker.certificateId}</span></p>
             </div>
+
+            {/* Reviews Section */}
+            <div className="border-t border-gray-200 pt-6">
+              <WorkerReviews workerId={selectedWorker.id} showStats={true} />
+            </div>
           </div>
 
           <div className="flex gap-3 mt-6">
@@ -704,15 +879,26 @@ export const WorkerSearch = () => {
               Zamknij
             </button>
             {selectedWorker.availability === 'active' && (
-              <button 
-                onClick={() => {
-                  setIsProfileModalOpen(false);
-                  handleOpenContact(selectedWorker);
-                }}
-                className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
-              >
-                📨 Wyślij wiadomość
-              </button>
+              <>
+                <button 
+                  onClick={() => {
+                    setIsProfileModalOpen(false);
+                    handleOpenReview(selectedWorker);
+                  }}
+                  className="flex-1 px-4 py-3 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 font-medium"
+                >
+                  ⭐ Wystaw opinię
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsProfileModalOpen(false);
+                    handleOpenContact(selectedWorker);
+                  }}
+                  className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 font-medium"
+                >
+                  📨 Wyślij wiadomość
+                </button>
+              </>
             )}
           </div>
         </Modal>
@@ -778,6 +964,18 @@ export const WorkerSearch = () => {
             </button>
           </div>
         </Modal>
+      )}
+
+      {/* MODAL: Review Worker */}
+      {selectedWorker && employerId && (
+        <ReviewWorkerModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          workerId={selectedWorker.id}
+          workerName={selectedWorker.fullName}
+          employerId={employerId} // Using actual employer.id from database
+          onSuccess={handleReviewSuccess}
+        />
       )}
     </div>
   );

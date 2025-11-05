@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 
-export type UserRole = 'admin' | 'employer' | 'worker';
+export type UserRole = 'admin' | 'employer' | 'worker' | 'accountant';
 
 export interface Subscription {
   planId: 'worker-basic' | 'worker-plus' | 'client-basic' | 'client-pro';
@@ -42,18 +42,29 @@ export interface RegisterData {
   companyName?: string;
   phone?: string;
   metadata?: {
+    // Worker fields
     specialization?: string;
     hourlyRate?: number | null;
     yearsOfExperience?: number;
     city?: string;
     skills?: string[];
     subscribeNewsletter?: boolean;
-    // NEW: Team & On-Demand fields
+    // Team & On-Demand fields
     workerType?: 'individual' | 'team_leader' | 'duo_partner' | 'helper_available';
     teamSize?: number;
     teamDescription?: string;
     teamHourlyRate?: number | null;
     isOnDemandAvailable?: boolean;
+    // Accountant fields
+    address?: string;
+    postal_code?: string;
+    kvk_number?: string;
+    btw_number?: string;
+    license_number?: string;
+    bio?: string;
+    website?: string;
+    specializations?: string[];
+    languages?: string[];
   };
 }
 
@@ -62,7 +73,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Mapping Supabase user to app user with timeout protection
 const mapSupabaseUserToAppUser = async (supabaseUser: SupabaseUser): Promise<User> => {
   const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error('User mapping timeout')), 10000) // 10 second timeout
+    setTimeout(() => reject(new Error('User mapping timeout')), 30000) // 30 second timeout
   );
 
   try {
@@ -71,7 +82,7 @@ const mapSupabaseUserToAppUser = async (supabaseUser: SupabaseUser): Promise<Use
       timeoutPromise
     ]);
   } catch (error) {
-    console.error('Error mapping user (with fallback):', error);
+    console.error('⚠️ Error mapping user (using fallback):', error);
     // Always return fallback user data to not block login
     return {
       id: supabaseUser.id,
@@ -138,6 +149,20 @@ const mapUserDataWithRetry = async (supabaseUser: SupabaseUser): Promise<User> =
         };
       } else {
         console.log('[SUBS-GUARD] No active subscription for employer');
+      }
+    }
+
+    if (typedProfile.role === 'accountant') {
+      // Fetch accountant data
+      const { data: accountant } = await supabase
+        .from('accountants' as any)
+        .select('company_name, full_name')
+        .eq('profile_id', typedProfile.id)
+        .maybeSingle();
+      
+      if (accountant) {
+        const accountantData = accountant as any;
+        companyName = accountantData?.company_name || accountantData?.full_name;
       }
     }
 
@@ -343,6 +368,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       });
 
       if (error) {
+        // Better error messages for common Supabase Auth errors
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
+          throw new Error(`Dit e-mailadres (${userData.email}) is al geregistreerd. Probeer in te loggen of gebruik een ander e-mailadres.`);
+        }
+        if (error.message.includes('Invalid email')) {
+          throw new Error('Ongeldig e-mailadres. Controleer het e-mailadres en probeer opnieuw.');
+        }
+        if (error.message.includes('Password should be')) {
+          throw new Error('Wachtwoord moet minimaal 6 tekens bevatten.');
+        }
         throw new Error(error.message);
       }
 
@@ -419,6 +454,42 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // They can complete profile later
         } else {
           console.log('[EMPLOYER-REG] ✅ Employer record created successfully');
+        }
+      }
+
+      // 🔥 NEW: If accountant, create accountant profile with metadata
+      if (userData.role === 'accountant' && userData.metadata) {
+        console.log('[ACCOUNTANT-REG] Creating accountant record for:', userData.email);
+        
+        const supabaseAny = supabase as any;
+        const { error: accountantProfileError } = await supabaseAny
+          .from('accountants')
+          .insert({
+            profile_id: data.user.id,
+            full_name: userData.fullName,
+            company_name: userData.companyName || null,
+            email: userData.email,
+            phone: userData.phone || null,
+            address: userData.metadata.address || null,
+            postal_code: userData.metadata.postal_code || null,
+            city: userData.metadata.city || null,
+            kvk_number: userData.metadata.kvk_number || null,
+            btw_number: userData.metadata.btw_number || null,
+            license_number: userData.metadata.license_number || null,
+            bio: userData.metadata.bio || null,
+            website: userData.metadata.website || null,
+            specializations: userData.metadata.specializations || [],
+            languages: userData.metadata.languages || ['Nederlands'],
+            years_experience: userData.metadata.yearsOfExperience || 0,
+            is_active: true,
+          });
+
+        if (accountantProfileError) {
+          console.error('[ACCOUNTANT-REG] ❌ Error creating accountant profile:', accountantProfileError);
+          // CRITICAL: Throw error to prevent incomplete registration
+          throw new Error(`Fout bij het maken van accountant profiel: ${accountantProfileError.message}`);
+        } else {
+          console.log('[ACCOUNTANT-REG] ✅ Accountant record created successfully');
         }
       }
 

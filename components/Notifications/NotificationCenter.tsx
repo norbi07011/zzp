@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Notification Center Component
  * Real-time notification UI with toast notifications

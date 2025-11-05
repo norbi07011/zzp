@@ -2,6 +2,7 @@ import React from 'react';
 import { Profile } from '../types';
 import { Badge } from './Badge';
 import { StarIcon, LocationIcon } from './icons';
+import { AddToTeamButton } from './AddToTeamButton';
 
 interface WorkerCardProps {
   profile: Profile;
@@ -99,6 +100,18 @@ export const WorkerCard: React.FC<WorkerCardProps> = ({ profile, onReview }) => 
               Review
             </button>
           </div>
+        </div>
+        
+        {/* ✅ NEW: Add to Team Button */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
+          <AddToTeamButton 
+            userId={String(profile.id)}
+            userEmail={profile.email}
+            userType="worker"
+            displayName={`${profile.firstName} ${profile.lastName}`}
+            avatarUrl={profile.avatarUrl}
+            className="w-full justify-center"
+          />
         </div>
       </div>
     </div>

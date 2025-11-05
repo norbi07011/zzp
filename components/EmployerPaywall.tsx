@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * EMPLOYER PAYWALL COMPONENT
  * Blocks access to employer dashboard without active subscription

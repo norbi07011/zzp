@@ -22,7 +22,12 @@ interface UseWorkersReturn {
  */
 export function useWorkers(): UseWorkersReturn {
   const [workers, setWorkers] = useState<WorkerWithProfile[]>([]);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<{
+    total: number;
+    verified: number;
+    unverified: number;
+    topRated: any[];
+  }>({
     total: 0,
     verified: 0,
     unverified: 0,
