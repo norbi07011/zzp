@@ -139,6 +139,7 @@ const BUILDING_CATEGORIES = [
   { value: 'malowanie', label: 'Malowanie' },
   { value: 'stolarka', label: 'Stolarka' },
   { value: 'sucha_zabudowa', label: 'Sucha zabudowa' },
+  { value: 'sprzatanie', label: 'Sprzątanie' }, // ✨ NOWE: Firmy sprzątające
   { value: 'ogrodzenia', label: 'Ogrodzenia/Bramy' },
   { value: 'kierownik', label: 'Kierownik budowy' },
   { value: 'posadzkarz', label: 'Posadzkarz' },
@@ -416,7 +417,17 @@ export const WorkerSearch = () => {
                 <select
                   id="category"
                   value={filterCategory}
-                  onChange={(e) => setFilterCategory(e.target.value)}
+                  onChange={(e) => {
+                    const selectedCategory = e.target.value;
+                    
+                    // ✨ REDIRECT: Jeśli wybrano "Sprzątanie", przekieruj do dedykowanej strony
+                    if (selectedCategory === 'sprzatanie') {
+                      navigate('/employer/cleaning-companies');
+                      return;
+                    }
+                    
+                    setFilterCategory(selectedCategory);
+                  }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 >
                   <option value="all">Wszystkie kategorie</option>

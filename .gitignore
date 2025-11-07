@@ -42,3 +42,7 @@ documentation/FIX_404_406_PAYMENT_ERRORS.md
 # Components with API keys
 components/APIIntegrationManager.tsx
 components/ThirdPartyConnectorsHub.tsx
+
+# External folders (temporary analysis)
+MESSU-BOUW-PREMIUM-13-main/
+MESSU-BOUW-PREMIUM-14-main/

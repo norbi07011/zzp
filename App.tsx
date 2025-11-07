@@ -89,6 +89,7 @@ const TestRealtimeCommunicationPage = lazy(() => import('./pages/TestRealtimeCom
 
 // Employer pages (LAZY LOADED)
 const WorkerSearch = lazy(() => import('./pages/employer/WorkerSearch').then(m => ({ default: m.WorkerSearch })));
+const CleaningCompanySearch = lazy(() => import('./src/pages/employer/CleaningCompanySearch').then(m => ({ default: m.default }))); // ✨ NOWE: Wyszukiwarka firm sprzątających
 const SubscriptionManager = lazy(() => import('./pages/employer/SubscriptionManager').then(m => ({ default: m.SubscriptionManager })));
 const EmployerDashboard = lazy(() => import('./pages/employer/EmployerDashboard').then(m => ({ default: m.EmployerDashboard })));
 const EmployerProfile = lazy(() => import('./pages/employer/EmployerProfile'));
@@ -97,6 +98,9 @@ const EditEmployerProfile = lazy(() => import('./pages/employer/EditEmployerProf
 // Worker pages (LAZY LOADED)
 const WorkerDashboard = lazy(() => import('./pages/WorkerDashboard'));
 const WorkerSubscriptionSelectionPage = lazy(() => import('./pages/worker/WorkerSubscriptionSelectionPage'));
+
+// Cleaning Company pages (LAZY LOADED) ✨ NOWE
+const CleaningCompanyProfile = lazy(() => import('./src/pages/cleaning/CleaningCompanyProfile').then(m => ({ default: m.default })));
 
 // Invoice Module (LAZY LOADED)
 const InvoiceApp = lazy(() => import('./src/modules/invoices').then(m => ({ default: m.InvoiceApp })));
@@ -152,6 +156,12 @@ function App() {
                     <Route path="/workers" element={
                         <ProtectedRoute>
                             <WorkerSearch />
+                        </ProtectedRoute>
+                    } />
+                    {/* ✨ NOWA ŚCIEŻKA: Wyszukiwarka firm sprzątających */}
+                    <Route path="/employer/cleaning-companies" element={
+                        <ProtectedRoute>
+                            <CleaningCompanySearch />
                         </ProtectedRoute>
                     } />
                 </Route>
@@ -256,6 +266,18 @@ function App() {
                   <Route index element={<WorkerDashboard />} />
                   <Route path="zzp-exam-application" element={<ZZPExamApplicationPage />} />
                   <Route path="subscription-selection" element={<WorkerSubscriptionSelectionPage />} />
+                </Route>
+
+                {/* ✨ NOWE: Cleaning Company Routes (dla firm sprzątających) */}
+                <Route
+                  path="/cleaning/*"
+                  element={
+                    <ProtectedRoute>
+                      <AuthenticatedLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="profile" element={<CleaningCompanyProfile />} />
                 </Route>
 
                 {/* Invoice Module - available for all authenticated users */}

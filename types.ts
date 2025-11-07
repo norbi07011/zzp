@@ -577,3 +577,135 @@ export const formatProjectRole = (role: ProjectRole): string => {
   };
   return roleLabels[role];
 };
+
+// ==========================================
+// FIRMY SPRZĄTAJĄCE PO BUDOWACH
+// ==========================================
+
+export type CleaningSpecialization = 
+  | 'cleaning_after_construction' // sprzątanie po budowach
+  | 'deep_cleaning' // gruntowne sprzątanie
+  | 'office_cleaning' // sprzątanie biur
+  | 'window_cleaning' // mycie okien
+  | 'maintenance_cleaning'; // utrzymanie czystości
+
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+
+export interface WeeklyAvailability {
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+}
+
+export interface CleaningCompany {
+  id: string;
+  
+  // Powiązanie z profiles
+  user_id: string;
+  profile_id?: string;
+  
+  // Podstawowe dane firmy
+  company_name: string;
+  owner_name: string;
+  phone?: string;
+  email?: string;
+  kvk_number?: string;
+  
+  // Lokalizacja
+  location_city?: string;
+  location_province?: string;
+  service_radius_km: number; // promień działania w km
+  
+  // Specjalizacja
+  specialization: CleaningSpecialization[];
+  additional_services: string[]; // np: 'own_equipment', 'eco_products', 'same_day_service', 'weekend_available'
+  
+  // KALENDARZ DOSTĘPNOŚCI - kluczowa funkcjonalność!
+  availability: WeeklyAvailability;
+  preferred_days_per_week: number; // zwykle 2
+  
+  // Stawka
+  hourly_rate_min?: number;
+  hourly_rate_max?: number;
+  rate_negotiable: boolean;
+  
+  // Doświadczenie
+  years_experience: number;
+  team_size: number; // ile osób w ekipie
+  
+  // Opis
+  bio?: string;
+  
+  // Portfolio
+  portfolio_images: string[]; // URLe do zdjęć prac
+  
+  // Oceny
+  average_rating: number;
+  total_reviews: number;
+  
+  // Subskrypcja
+  subscription_tier: 'basic' | 'pro' | 'premium';
+  subscription_status: 'active' | 'inactive' | 'suspended';
+  
+  // Widoczność
+  profile_visibility: 'public' | 'private' | 'draft';
+  accepting_new_clients: boolean;
+  
+  // Timestamps
+  last_active: string;
+  created_at: string;
+  updated_at: string;
+}
+
+// Helper functions dla cleaning companies
+
+export const getDayLabel = (day: DayOfWeek): string => {
+  const labels: Record<DayOfWeek, string> = {
+    monday: 'Poniedziałek',
+    tuesday: 'Wtorek',
+    wednesday: 'Środa',
+    thursday: 'Czwartek',
+    friday: 'Piątek',
+    saturday: 'Sobota',
+    sunday: 'Niedziela'
+  };
+  return labels[day];
+};
+
+export const getDayShortLabel = (day: DayOfWeek): string => {
+  const labels: Record<DayOfWeek, string> = {
+    monday: 'Pn',
+    tuesday: 'Wt',
+    wednesday: 'Śr',
+    thursday: 'Cz',
+    friday: 'Pt',
+    saturday: 'So',
+    sunday: 'Nd'
+  };
+  return labels[day];
+};
+
+export const getCleaningSpecializationLabel = (spec: CleaningSpecialization): string => {
+  const labels: Record<CleaningSpecialization, string> = {
+    cleaning_after_construction: 'Sprzątanie po budowach',
+    deep_cleaning: 'Gruntowne sprzątanie',
+    office_cleaning: 'Sprzątanie biur',
+    window_cleaning: 'Mycie okien',
+    maintenance_cleaning: 'Utrzymanie czystości'
+  };
+  return labels[spec];
+};
+
+export const countAvailableDays = (availability: WeeklyAvailability): number => {
+  return Object.values(availability).filter(Boolean).length;
+};
+
+export const getAvailableDaysList = (availability: WeeklyAvailability): DayOfWeek[] => {
+  return (Object.keys(availability) as DayOfWeek[]).filter(
+    day => availability[day]
+  );
+};
