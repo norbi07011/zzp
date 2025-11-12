@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../src/lib/supabase-fixed';
+import { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../src/lib/supabase-fixed";
 import {
   getPosts,
   createPost,
@@ -12,12 +12,15 @@ import {
   type Post,
   type PostComment,
   type PostType,
-  type CreatePostData
-} from '../src/services/feedService';
-import { uploadMultipleFeedMedia, type MediaUploadResult } from '../src/services/storage';
-import { 
-  Star, 
-  MessageSquare, 
+  type CreatePostData,
+} from "../src/services/feedService";
+import {
+  uploadMultipleFeedMedia,
+  type MediaUploadResult,
+} from "../src/services/storage";
+import {
+  Star,
+  MessageSquare,
   User,
   Briefcase,
   MapPin,
@@ -25,19 +28,20 @@ import {
   Upload,
   X,
   Image,
-  Video
-} from '../components/icons';
-import { LoadingOverlay } from '../components/Loading';
-import { ShareModal } from '../components/ShareModal';
+  Video,
+} from "../components/icons";
+import { LoadingOverlay } from "../components/Loading";
+import { ShareModal } from "../components/ShareModal";
 
 export default function FeedPage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreatePost, setShowCreatePost] = useState(false);
-  
+
   // Can create posts: only employers and accountants
-  const canCreatePost = user?.role === 'employer' || user?.role === 'accountant';
+  const canCreatePost =
+    user?.role === "employer" || user?.role === "accountant";
 
   useEffect(() => {
     loadFeed();
@@ -46,26 +50,49 @@ export default function FeedPage() {
   const loadFeed = async () => {
     try {
       setLoading(true);
-      
-      // Get current user's role-specific ID
+      console.log(
+        "[FEED] Loading feed for user:",
+        user?.id,
+        "role:",
+        user?.role
+      );
+
+      // Get current user's role-specific ID for post authorship
+      // (posts.author_id uses role-specific IDs like accountants.id, workers.id)
       let currentUserId: string | undefined;
       if (user?.id && user?.role) {
-        if (user.role === 'worker') {
-          const { data } = await supabase.from('workers').select('id').eq('profile_id', user.id).single();
+        if (user.role === "worker") {
+          const { data } = await supabase
+            .from("workers")
+            .select("id")
+            .eq("profile_id", user.id)
+            .single();
           currentUserId = data?.id;
-        } else if (user.role === 'employer') {
-          const { data } = await supabase.from('employers').select('id').eq('profile_id', user.id).single();
+        } else if (user.role === "employer") {
+          const { data } = await supabase
+            .from("employers")
+            .select("id")
+            .eq("profile_id", user.id)
+            .single();
           currentUserId = data?.id;
-        } else if (user.role === 'accountant') {
-          const { data } = await supabase.from('accountants').select('id').eq('profile_id', user.id).single();
+        } else if (user.role === "accountant") {
+          const { data } = await supabase
+            .from("accountants")
+            .select("id")
+            .eq("profile_id", user.id)
+            .single();
           currentUserId = data?.id;
         }
       }
-      
-      const data = await getPosts({ limit: 20, currentUserId });
+
+      console.log("[FEED] Current user ID:", currentUserId);
+      // Pass user.id (profile_id) for likes, currentUserId for post authorship
+      const data = await getPosts({ limit: 20, currentUserId: user?.id });
+      console.log("[FEED] Posts loaded:", data.length, "posts");
+      console.log("[FEED] Posts:", data);
       setPosts(data);
     } catch (error) {
-      console.error('Error loading feed:', error);
+      console.error("[FEED] Error loading feed:", error);
     } finally {
       setLoading(false);
     }
@@ -75,46 +102,18 @@ export default function FeedPage() {
     if (!user?.id || !user?.role) return;
 
     try {
-      // Get the actual user_id from the role-specific table
-      let actualUserId: string | null = null;
-      
-      if (user.role === 'worker') {
-        const { data } = await supabase
-          .from('workers')
-          .select('id')
-          .eq('profile_id', user.id)
-          .single();
-        actualUserId = data?.id;
-      } else if (user.role === 'employer') {
-        const { data } = await supabase
-          .from('employers')
-          .select('id')
-          .eq('profile_id', user.id)
-          .single();
-        actualUserId = data?.id;
-      } else if (user.role === 'accountant') {
-        const { data } = await supabase
-          .from('accountants')
-          .select('id')
-          .eq('profile_id', user.id)
-          .single();
-        actualUserId = data?.id;
-      }
-
-      if (!actualUserId) {
-        console.error('Could not find user ID for role:', user.role);
-        return;
-      }
+      // Use profile_id (auth.uid()) directly for likes - no need to query role table
+      const profileId = user.id;
 
       if (currentlyLiked) {
-        await unlikePost(postId, actualUserId);
+        await unlikePost(postId, profileId);
       } else {
-        await likePost(postId, actualUserId, user.role as any);
+        await likePost(postId, profileId, user.role as any);
       }
       // Refresh feed
       await loadFeed();
     } catch (error) {
-      console.error('Error toggling like:', error);
+      console.error("Error toggling like:", error);
     }
   };
 
@@ -128,7 +127,9 @@ export default function FeedPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Feed</h1>
-          <p className="text-gray-600">Blijf op de hoogte van het laatste nieuws</p>
+          <p className="text-gray-600">
+            Blijf op de hoogte van het laatste nieuws
+          </p>
         </div>
 
         {/* Create Post Button (alleen voor employers en accountants) */}
@@ -143,7 +144,9 @@ export default function FeedPage() {
                   <User className="w-6 h-6 text-amber-600" />
                 </div>
                 <span className="text-gray-600">
-                  {showCreatePost ? 'Annuleren' : 'Deel iets met de community...'}
+                  {showCreatePost
+                    ? "Annuleren"
+                    : "Deel iets met de community..."}
                 </span>
               </div>
             </button>
@@ -154,7 +157,7 @@ export default function FeedPage() {
         {showCreatePost && canCreatePost && user && (
           <CreatePostForm
             userId={user.id}
-            userRole={user.role as 'employer' | 'accountant'}
+            userRole={user.role as "employer" | "accountant"}
             onPostCreated={() => {
               setShowCreatePost(false);
               loadFeed();
@@ -174,9 +177,9 @@ export default function FeedPage() {
                 Nog geen posts
               </h3>
               <p className="text-gray-600">
-                {canCreatePost 
-                  ? 'Wees de eerste om iets te delen!' 
-                  : 'Zodra er posts zijn, verschijnen ze hier.'}
+                {canCreatePost
+                  ? "Wees de eerste om iets te delen!"
+                  : "Zodra er posts zijn, verschijnen ze hier."}
               </p>
             </div>
           ) : (
@@ -204,28 +207,35 @@ export default function FeedPage() {
 
 interface CreatePostFormProps {
   userId: string;
-  userRole: 'employer' | 'accountant';
+  userRole: "employer" | "accountant";
   onPostCreated: () => void;
   onCancel: () => void;
 }
 
-function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePostFormProps) {
-  const [postType, setPostType] = useState<PostType>('announcement');
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+function CreatePostForm({
+  userId,
+  userRole,
+  onPostCreated,
+  onCancel,
+}: CreatePostFormProps) {
+  const [postType, setPostType] = useState<PostType>("announcement");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   // Media upload states - re-enabled with proper error handling
   const MEDIA_UPLOAD_ENABLED = true;
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingMedia, setUploadingMedia] = useState(false);
-  const [mediaPreview, setMediaPreview] = useState<{ file: File; preview: string; type: 'image' | 'video' }[]>([]);
+  const [mediaPreview, setMediaPreview] = useState<
+    { file: File; preview: string; type: "image" | "video" }[]
+  >([]);
 
   // Job offer specific fields
-  const [jobCategory, setJobCategory] = useState('');
-  const [jobLocation, setJobLocation] = useState('');
-  const [jobSalaryMin, setJobSalaryMin] = useState('');
-  const [jobSalaryMax, setJobSalaryMax] = useState('');
+  const [jobCategory, setJobCategory] = useState("");
+  const [jobLocation, setJobLocation] = useState("");
+  const [jobSalaryMin, setJobSalaryMin] = useState("");
+  const [jobSalaryMax, setJobSalaryMax] = useState("");
 
   // Media handling functions
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -236,7 +246,7 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
     const currentCount = selectedFiles.length;
     const newCount = currentCount + files.length;
     if (newCount > 10) {
-      alert('Maksymalnie 10 plików na post');
+      alert("Maksymalnie 10 plików na post");
       return;
     }
 
@@ -244,9 +254,9 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
     const validFiles: File[] = [];
     const invalidFiles: string[] = [];
 
-    files.forEach(file => {
-      const isImage = file.type.startsWith('image/');
-      const isVideo = file.type.startsWith('video/');
+    files.forEach((file) => {
+      const isImage = file.type.startsWith("image/");
+      const isVideo = file.type.startsWith("video/");
       const isValidSize = file.size <= 20 * 1024 * 1024; // 20MB
 
       if ((isImage || isVideo) && isValidSize) {
@@ -257,37 +267,41 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
     });
 
     if (invalidFiles.length > 0) {
-      alert(`Nieprawidłowe pliki: ${invalidFiles.join(', ')}\nObsługiwane: zdjęcia i filmy do 20MB`);
+      alert(
+        `Nieprawidłowe pliki: ${invalidFiles.join(
+          ", "
+        )}\nObsługiwane: zdjęcia i filmy do 20MB`
+      );
     }
 
     if (validFiles.length > 0) {
-      setSelectedFiles(prev => [...prev, ...validFiles]);
-      
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+
       // Generate previews
-      validFiles.forEach(file => {
+      validFiles.forEach((file) => {
         const reader = new FileReader();
         reader.onload = (e) => {
           const preview = e.target?.result as string;
-          const type = file.type.startsWith('image/') ? 'image' : 'video';
-          
-          setMediaPreview(prev => [...prev, { file, preview, type }]);
+          const type = file.type.startsWith("image/") ? "image" : "video";
+
+          setMediaPreview((prev) => [...prev, { file, preview, type }]);
         };
         reader.readAsDataURL(file);
       });
     }
 
     // Reset input
-    e.target.value = '';
+    e.target.value = "";
   };
 
   const removeMedia = (index: number) => {
-    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
-    setMediaPreview(prev => prev.filter((_, i) => i !== index));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setMediaPreview((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!content.trim()) return;
 
     try {
@@ -300,21 +314,34 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
       if (selectedFiles.length > 0) {
         try {
           setUploadingMedia(true);
-          console.log(`📤 Uploading ${selectedFiles.length} files for user: ${userId}`);
-          
-          const uploadResult = await uploadMultipleFeedMedia(selectedFiles, userId);
-          
+          console.log(
+            `📤 Uploading ${selectedFiles.length} files for user: ${userId}`
+          );
+
+          const uploadResult = await uploadMultipleFeedMedia(
+            selectedFiles,
+            userId
+          );
+
           if (uploadResult.success) {
             mediaUrls = uploadResult.urls;
             mediaTypes = uploadResult.types;
-            console.log('✅ Media uploaded successfully:', mediaUrls.length, 'files');
+            console.log(
+              "✅ Media uploaded successfully:",
+              mediaUrls.length,
+              "files"
+            );
           } else {
-            console.warn('⚠️ Media upload failed:', uploadResult.error);
-            alert(`Ostrzeżenie: ${uploadResult.error}. Post zostanie utworzony bez mediów.`);
+            console.warn("⚠️ Media upload failed:", uploadResult.error);
+            alert(
+              `Ostrzeżenie: ${uploadResult.error}. Post zostanie utworzony bez mediów.`
+            );
           }
         } catch (uploadError) {
-          console.error('❌ Media upload error:', uploadError);
-          alert('Ostrzeżenie: Błąd podczas przesyłania mediów. Post zostanie utworzony bez mediów.');
+          console.error("❌ Media upload error:", uploadError);
+          alert(
+            "Ostrzeżenie: Błąd podczas przesyłania mediów. Post zostanie utworzony bez mediów."
+          );
         } finally {
           setUploadingMedia(false);
         }
@@ -326,35 +353,39 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
         title: title.trim() || undefined,
         content: content.trim(),
         media_urls: mediaUrls.length > 0 ? mediaUrls : undefined,
-        media_types: mediaTypes.length > 0 ? mediaTypes : undefined
+        media_types: mediaTypes.length > 0 ? mediaTypes : undefined,
       };
 
       // Add job offer metadata if applicable
-      if (postType === 'job_offer') {
+      if (postType === "job_offer") {
         postData.job_category = jobCategory || undefined;
         postData.job_location = jobLocation || undefined;
-        postData.job_salary_min = jobSalaryMin ? parseFloat(jobSalaryMin) : undefined;
-        postData.job_salary_max = jobSalaryMax ? parseFloat(jobSalaryMax) : undefined;
+        postData.job_salary_min = jobSalaryMin
+          ? parseFloat(jobSalaryMin)
+          : undefined;
+        postData.job_salary_max = jobSalaryMax
+          ? parseFloat(jobSalaryMax)
+          : undefined;
       }
 
-      console.log('📝 Creating post with media:', mediaUrls.length, 'files');
+      console.log("📝 Creating post with media:", mediaUrls.length, "files");
       await createPost(postData);
-      console.log('✅ Post created successfully!');
-      
+      console.log("✅ Post created successfully!");
+
       // Reset form
-      setTitle('');
-      setContent('');
-      setJobCategory('');
-      setJobLocation('');
-      setJobSalaryMin('');
-      setJobSalaryMax('');
+      setTitle("");
+      setContent("");
+      setJobCategory("");
+      setJobLocation("");
+      setJobSalaryMin("");
+      setJobSalaryMax("");
       setSelectedFiles([]);
       setMediaPreview([]);
-      
+
       onPostCreated();
     } catch (error) {
-      console.error('Error creating post:', error);
-      alert('Fout bij het aanmaken van post. Probeer het opnieuw.');
+      console.error("Error creating post:", error);
+      alert("Fout bij het aanmaken van post. Probeer het opnieuw.");
     } finally {
       setSubmitting(false);
       setUploadingMedia(false);
@@ -370,22 +401,30 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
             Type post
           </label>
           <div className="flex flex-wrap gap-2">
-            {(['announcement', 'job_offer', 'ad', 'story', 'service'] as PostType[]).map((type) => (
+            {(
+              [
+                "announcement",
+                "job_offer",
+                "ad",
+                "story",
+                "service",
+              ] as PostType[]
+            ).map((type) => (
               <button
                 key={type}
                 type="button"
                 onClick={() => setPostType(type)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   postType === type
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? "bg-amber-600 text-white"
+                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                {type === 'announcement' && '📢 Aankondiging'}
-                {type === 'job_offer' && '💼 Vacature'}
-                {type === 'ad' && '📣 Advertentie'}
-                {type === 'story' && '📝 Verhaal'}
-                {type === 'service' && '🛠️ Dienst'}
+                {type === "announcement" && "📢 Aankondiging"}
+                {type === "job_offer" && "💼 Vacature"}
+                {type === "ad" && "📣 Advertentie"}
+                {type === "story" && "📝 Verhaal"}
+                {type === "service" && "🛠️ Dienst"}
               </button>
             ))}
           </div>
@@ -415,10 +454,10 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
         </div>
 
         {/* Job Offer Fields */}
-        {postType === 'job_offer' && (
+        {postType === "job_offer" && (
           <div className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
             <h4 className="font-medium text-gray-900">Vacature details</h4>
-            
+
             <input
               type="text"
               value={jobCategory}
@@ -426,7 +465,7 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
               placeholder="Categorie (bijv. Bouw, IT, Zorg)"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
-            
+
             <input
               type="text"
               value={jobLocation}
@@ -434,7 +473,7 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
               placeholder="Locatie (bijv. Amsterdam, Rotterdam)"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
             />
-            
+
             <div className="grid grid-cols-2 gap-3">
               <input
                 type="number"
@@ -457,8 +496,8 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
         {/* Media Upload - re-enabled with better error handling */}
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-3">
-            <label 
-              htmlFor="media-upload" 
+            <label
+              htmlFor="media-upload"
               className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer transition-colors"
             >
               <Upload className="w-4 h-4" />
@@ -482,8 +521,11 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
           {mediaPreview.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {mediaPreview.map((media, index) => (
-                <div key={index} className="relative bg-gray-100 rounded-lg overflow-hidden group">
-                  {media.type === 'image' ? (
+                <div
+                  key={index}
+                  className="relative bg-gray-100 rounded-lg overflow-hidden group"
+                >
+                  {media.type === "image" ? (
                     <img
                       src={media.preview}
                       alt={`Preview ${index + 1}`}
@@ -497,7 +539,7 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
                       </span>
                     </div>
                   )}
-                  
+
                   <button
                     type="button"
                     onClick={() => removeMedia(index)}
@@ -505,9 +547,9 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
                   >
                     <X className="w-3 h-3" />
                   </button>
-                  
+
                   <div className="absolute bottom-1 left-1 px-1 py-0.5 bg-black bg-opacity-60 text-white text-xs rounded">
-                    {media.type === 'image' ? (
+                    {media.type === "image" ? (
                       <Image className="w-3 h-3" />
                     ) : (
                       <Video className="w-3 h-3" />
@@ -543,10 +585,10 @@ function CreatePostForm({ userId, userRole, onPostCreated, onCancel }: CreatePos
             {submitting || uploadingMedia ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                {uploadingMedia ? 'Przesyłanie...' : 'Zapisywanie...'}
+                {uploadingMedia ? "Przesyłanie..." : "Zapisywanie..."}
               </div>
             ) : (
-              'Plaatsen'
+              "Plaatsen"
             )}
           </button>
         </div>
@@ -568,10 +610,17 @@ interface PostCardProps {
   currentUserRole?: string;
 }
 
-function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUserRole }: PostCardProps) {
+function PostCard({
+  post,
+  onLike,
+  onComment,
+  onShare,
+  currentUserId,
+  currentUserRole,
+}: PostCardProps) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<PostComment[]>([]);
-  const [commentText, setCommentText] = useState('');
+  const [commentText, setCommentText] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -582,7 +631,7 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
       const data = await getPostComments(post.id);
       setComments(data);
     } catch (error) {
-      console.error('Error loading comments:', error);
+      console.error("Error loading comments:", error);
     } finally {
       setLoadingComments(false);
     }
@@ -597,58 +646,58 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!commentText.trim() || !currentUserId || !currentUserRole) {
       return;
     }
 
     try {
       setIsSubmittingComment(true);
-      
+
       // Get the actual user_id from the role-specific table
       let actualUserId: string | null = null;
-      
-      if (currentUserRole === 'worker') {
+
+      if (currentUserRole === "worker") {
         const { data } = await supabase
-          .from('workers')
-          .select('id')
-          .eq('profile_id', currentUserId)
+          .from("workers")
+          .select("id")
+          .eq("profile_id", currentUserId)
           .single();
         actualUserId = data?.id;
-      } else if (currentUserRole === 'employer') {
+      } else if (currentUserRole === "employer") {
         const { data } = await supabase
-          .from('employers')
-          .select('id')
-          .eq('profile_id', currentUserId)
+          .from("employers")
+          .select("id")
+          .eq("profile_id", currentUserId)
           .single();
         actualUserId = data?.id;
-      } else if (currentUserRole === 'accountant') {
+      } else if (currentUserRole === "accountant") {
         const { data } = await supabase
-          .from('accountants')
-          .select('id')
-          .eq('profile_id', currentUserId)
+          .from("accountants")
+          .select("id")
+          .eq("profile_id", currentUserId)
           .single();
         actualUserId = data?.id;
       }
 
       if (!actualUserId) {
-        console.error('Could not find user ID for role:', currentUserRole);
-        alert('Fout bij het plaatsen van reactie. Probeer het opnieuw.');
+        console.error("Could not find user ID for role:", currentUserRole);
+        alert("Fout bij het plaatsen van reactie. Probeer het opnieuw.");
         return;
       }
-      
+
       await createComment(
         post.id,
         actualUserId,
         currentUserRole as any,
         commentText.trim()
       );
-      
-      setCommentText('');
+
+      setCommentText("");
       await loadComments(); // Reload comments
     } catch (error) {
-      console.error('Error posting comment:', error);
-      alert('Fout bij het plaatsen van reactie. Probeer het opnieuw.');
+      console.error("Error posting comment:", error);
+      alert("Fout bij het plaatsen van reactie. Probeer het opnieuw.");
     } finally {
       setIsSubmittingComment(false);
     }
@@ -670,7 +719,7 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
     if (diffMins < 60) return `${diffMins}m geleden`;
     if (diffHours < 24) return `${diffHours}u geleden`;
     if (diffDays < 7) return `${diffDays}d geleden`;
-    return date.toLocaleDateString('nl-NL');
+    return date.toLocaleDateString("nl-NL");
   };
 
   return (
@@ -680,30 +729,37 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
         <div className="flex items-start gap-3 mb-4">
           {/* Avatar */}
           <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-            {post.author_name?.charAt(0) || 'U'}
+            {post.author_name?.charAt(0) || "U"}
           </div>
-          
+
           {/* Author Info */}
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900">{post.author_name}</h3>
             {post.author_company && (
               <p className="text-sm text-gray-600">{post.author_company}</p>
             )}
-            <p className="text-xs text-gray-500">{formatDate(post.published_at)}</p>
+            <p className="text-xs text-gray-500">
+              {formatDate(post.published_at)}
+            </p>
           </div>
 
           {/* Post Type Badge */}
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-            post.type === 'job_offer' ? 'bg-blue-100 text-blue-700' :
-            post.type === 'ad' ? 'bg-purple-100 text-purple-700' :
-            post.type === 'service' ? 'bg-green-100 text-green-700' :
-            'bg-gray-100 text-gray-700'
-          }`}>
-            {post.type === 'job_offer' && '💼 Vacature'}
-            {post.type === 'ad' && '📣 Advertentie'}
-            {post.type === 'announcement' && '📢 Aankondiging'}
-            {post.type === 'story' && '📝 Verhaal'}
-            {post.type === 'service' && '🛠️ Dienst'}
+          <span
+            className={`px-3 py-1 rounded-full text-xs font-medium ${
+              post.type === "job_offer"
+                ? "bg-blue-100 text-blue-700"
+                : post.type === "ad"
+                ? "bg-purple-100 text-purple-700"
+                : post.type === "service"
+                ? "bg-green-100 text-green-700"
+                : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            {post.type === "job_offer" && "💼 Vacature"}
+            {post.type === "ad" && "📣 Advertentie"}
+            {post.type === "announcement" && "📢 Aankondiging"}
+            {post.type === "story" && "📝 Verhaal"}
+            {post.type === "service" && "🛠️ Dienst"}
           </span>
         </div>
 
@@ -718,52 +774,57 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
         {/* Media Gallery */}
         {post.media_urls && post.media_urls.length > 0 && (
           <div className="mb-4">
-            <div className={`grid gap-2 ${
-              post.media_urls.length === 1 ? 'grid-cols-1' :
-              post.media_urls.length === 2 ? 'grid-cols-2' :
-              post.media_urls.length === 3 ? 'grid-cols-3' :
-              'grid-cols-2'
-            }`}>
+            <div
+              className={`grid gap-2 ${
+                post.media_urls.length === 1
+                  ? "grid-cols-1"
+                  : post.media_urls.length === 2
+                  ? "grid-cols-2"
+                  : post.media_urls.length === 3
+                  ? "grid-cols-3"
+                  : "grid-cols-2"
+              }`}
+            >
               {post.media_urls.map((mediaUrl, index) => {
-                const mediaType = post.media_types?.[index] || 'image';
-                
+                const mediaType = post.media_types?.[index] || "image";
+
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className={`relative bg-gray-900 rounded-lg overflow-hidden group ${
-                      post.media_urls!.length === 1 ? 'col-span-full' : ''
+                      post.media_urls!.length === 1 ? "col-span-full" : ""
                     }`}
                   >
-                    {mediaType === 'image' ? (
+                    {mediaType === "image" ? (
                       <img
                         src={mediaUrl}
                         alt={`Media ${index + 1}`}
                         className={`w-full ${
-                          post.media_urls!.length === 1 
-                            ? 'max-h-[600px] object-contain' 
-                            : 'h-64 object-cover'
+                          post.media_urls!.length === 1
+                            ? "max-h-[600px] object-contain"
+                            : "h-64 object-cover"
                         } hover:opacity-95 transition-opacity cursor-pointer bg-black`}
-                        onClick={() => window.open(mediaUrl, '_blank')}
+                        onClick={() => window.open(mediaUrl, "_blank")}
                       />
                     ) : (
                       <video
                         src={mediaUrl}
                         controls
                         className={`w-full ${
-                          post.media_urls!.length === 1 
-                            ? 'max-h-[600px]' 
-                            : 'h-64'
+                          post.media_urls!.length === 1
+                            ? "max-h-[600px]"
+                            : "h-64"
                         } bg-black`}
                         preload="metadata"
-                        style={{ objectFit: 'contain' }}
+                        style={{ objectFit: "contain" }}
                       >
                         Twoja przeglądarka nie obsługuje odtwarzania wideo.
                       </video>
                     )}
-                    
+
                     {/* Media type indicator */}
                     <div className="absolute top-2 right-2 px-2 py-1 bg-black bg-opacity-60 text-white text-xs rounded flex items-center gap-1">
-                      {mediaType === 'image' ? (
+                      {mediaType === "image" ? (
                         <Image className="w-3 h-3" />
                       ) : (
                         <Video className="w-3 h-3" />
@@ -774,7 +835,7 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
                 );
               })}
             </div>
-            
+
             {/* Media count indicator */}
             {post.media_urls.length > 4 && (
               <div className="text-center mt-2">
@@ -787,7 +848,7 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
         )}
 
         {/* Job Offer Details */}
-        {post.type === 'job_offer' && (
+        {post.type === "job_offer" && (
           <div className="bg-blue-50 rounded-lg p-4 space-y-2 mb-4">
             {post.job_category && (
               <div className="flex items-center gap-2 text-sm text-gray-700">
@@ -805,7 +866,8 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
               <div className="flex items-center gap-2 text-sm text-gray-700">
                 <span className="font-medium">Salaris:</span>
                 <span>
-                  €{post.job_salary_min || '?'} - €{post.job_salary_max || '?'} /uur
+                  €{post.job_salary_min || "?"} - €{post.job_salary_max || "?"}{" "}
+                  /uur
                 </span>
               </div>
             )}
@@ -820,11 +882,13 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
           onClick={onLike}
           className={`flex items-center gap-2 transition-colors ${
             post.user_has_liked
-              ? 'text-red-600'
-              : 'text-gray-600 hover:text-red-600'
+              ? "text-red-600"
+              : "text-gray-600 hover:text-red-600"
           }`}
         >
-          <Star className={`w-5 h-5 ${post.user_has_liked ? 'fill-red-600' : ''}`} />
+          <Star
+            className={`w-5 h-5 ${post.user_has_liked ? "fill-red-600" : ""}`}
+          />
           <span className="text-sm font-medium">{post.likes_count}</span>
         </button>
 
@@ -842,7 +906,9 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
           onClick={handleShare}
           className="flex items-center gap-2 text-gray-600 hover:text-blue-600 transition-colors"
         >
-          <span className="text-sm font-medium">{post.shares_count} shares</span>
+          <span className="text-sm font-medium">
+            {post.shares_count} shares
+          </span>
         </button>
 
         {/* Views */}
@@ -855,7 +921,9 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
       {showComments && (
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
           {loadingComments ? (
-            <div className="text-center py-4 text-gray-600">Reacties laden...</div>
+            <div className="text-center py-4 text-gray-600">
+              Reacties laden...
+            </div>
           ) : (
             <>
               {/* Comments List */}
@@ -863,15 +931,21 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
                 {comments.map((comment) => (
                   <div key={comment.id} className="flex items-start gap-3">
                     <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-xs font-bold text-gray-600 flex-shrink-0">
-                      {comment.user_name?.charAt(0) || 'U'}
+                      {comment.user_name?.charAt(0) || "U"}
                     </div>
                     <div className="flex-1">
                       <div className="bg-white rounded-lg p-3">
-                        <p className="text-sm font-medium text-gray-900">{comment.user_name}</p>
-                        <p className="text-sm text-gray-700">{comment.content}</p>
+                        <p className="text-sm font-medium text-gray-900">
+                          {comment.user_name}
+                        </p>
+                        <p className="text-sm text-gray-700">
+                          {comment.content}
+                        </p>
                       </div>
                       <div className="flex items-center gap-4 mt-1 px-3">
-                        <span className="text-xs text-gray-500">{formatDate(comment.created_at)}</span>
+                        <span className="text-xs text-gray-500">
+                          {formatDate(comment.created_at)}
+                        </span>
                         <button className="text-xs text-gray-600 hover:text-amber-600">
                           Vind ik leuk ({comment.likes_count})
                         </button>
@@ -906,7 +980,7 @@ function PostCard({ post, onLike, onComment, onShare, currentUserId, currentUser
                           disabled={!commentText.trim() || isSubmittingComment}
                           className="px-4 py-2 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isSubmittingComment ? 'Plaatsen...' : 'Reageren'}
+                          {isSubmittingComment ? "Plaatsen..." : "Reageren"}
                         </button>
                       </div>
                     </div>

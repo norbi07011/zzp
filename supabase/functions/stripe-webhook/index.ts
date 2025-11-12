@@ -1,7 +1,7 @@
 /**
  * SUPABASE EDGE FUNCTION: stripe-webhook
  * Handles Stripe webhook events for subscription lifecycle
- * 
+ *
  * DEPLOYMENT INSTRUCTIONS:
  * 1. Install Supabase CLI: npm install -g supabase
  * 2. Login: supabase login
@@ -15,64 +15,68 @@
  * 7. Add URL to Stripe Webhook Dashboard
  */
 
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import Stripe from 'https://esm.sh/stripe@14.21.0?target=deno';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.7';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
 
-const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') || '', {
-  apiVersion: '2024-12-18.acacia',
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+  apiVersion: "2025-09-30.clover",
   httpClient: Stripe.createFetchHttpClient(),
 });
 
-const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET') || '';
+const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET") || "";
 
-const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-serve(async (req) => {
-  const signature = req.headers.get('stripe-signature');
+serve(async (req: Request) => {
+  const signature = req.headers.get("stripe-signature");
 
   if (!signature) {
-    return new Response('Missing signature', { status: 400 });
+    return new Response("Missing signature", { status: 400 });
   }
 
   try {
     const body = await req.text();
-    
-    // Verify webhook signature
-    const event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
 
-    console.log('✅ Webhook verified:', event.type);
+    // Verify webhook signature
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      webhookSecret
+    );
+
+    console.log("✅ Webhook verified:", event.type);
 
     // Handle different event types
     switch (event.type) {
-      case 'checkout.session.completed': {
+      case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         await handleCheckoutCompleted(session);
         break;
       }
 
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated': {
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         await handleSubscriptionUpdate(subscription);
         break;
       }
 
-      case 'customer.subscription.deleted': {
+      case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         await handleSubscriptionCancelled(subscription);
         break;
       }
 
-      case 'invoice.payment_succeeded': {
+      case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         await handlePaymentSucceeded(invoice);
         break;
       }
 
-      case 'invoice.payment_failed': {
+      case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
         await handlePaymentFailed(invoice);
         break;
@@ -83,52 +87,100 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ received: true }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { "Content-Type": "application/json" },
       status: 200,
     });
   } catch (err) {
-    console.error('❌ Webhook error:', err);
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+    console.error("❌ Webhook error:", err);
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
+    return new Response(`Webhook Error: ${errorMessage}`, { status: 400 });
   }
 });
 
 /**
  * Handle completed checkout session
- * Creates subscription record in database
+ * Creates subscription record in database OR processes ZZP exam payment
  */
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  console.log('💳 Checkout completed:', session.id);
+  console.log("💳 Checkout completed:", session.id);
 
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
-  
+  const paymentType = session.metadata?.type;
+
   // Get worker ID from metadata
   const workerId = session.metadata?.userId;
 
   if (!workerId) {
-    console.error('❌ No userId in session metadata');
+    console.error("❌ No userId in session metadata");
     return;
   }
 
+  // Check if this is a ZZP exam payment (one-time) or subscription
+  if (paymentType === "zzp_exam") {
+    console.log("📝 Processing ZZP exam payment");
+
+    const applicationId = session.metadata?.applicationId;
+
+    if (!applicationId) {
+      console.error("❌ No applicationId in session metadata");
+      return;
+    }
+
+    // Update zzp_exam_applications status
+    const { error: appError } = await supabase
+      .from("zzp_exam_applications")
+      .update({
+        status: "payment_completed",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", applicationId);
+
+    if (appError) {
+      console.error("❌ Error updating exam application:", appError);
+    } else {
+      console.log("✅ Exam application payment completed:", applicationId);
+    }
+
+    // Update payments table record
+    const { error: paymentError } = await supabase
+      .from("payments")
+      .update({
+        status: "completed",
+        payment_date: new Date().toISOString(),
+        transaction_id: (session.payment_intent as string) || session.id,
+      })
+      .eq("transaction_id", session.id); // Find by session ID stored in transaction_id
+
+    if (paymentError) {
+      console.error("❌ Error updating payment record:", paymentError);
+    } else {
+      console.log("✅ Payment record marked as completed");
+    }
+
+    return;
+  }
+
+  // Original subscription logic
   // Update worker with Stripe customer ID
   const { error: updateError } = await supabase
-    .from('workers')
+    .from("workers")
     .update({
       stripe_customer_id: customerId,
       stripe_subscription_id: subscriptionId,
-      subscription_tier: 'premium',
-      subscription_status: 'active',
+      subscription_tier: "premium",
+      subscription_status: "active",
       subscription_start_date: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', workerId);
+    .eq("id", workerId);
 
   if (updateError) {
-    console.error('❌ Error updating worker:', updateError);
+    console.error("❌ Error updating worker:", updateError);
     return;
   }
 
-  console.log('✅ Worker updated with subscription:', workerId);
+  console.log("✅ Worker updated with subscription:", workerId);
 
   // TODO: Send welcome email (FAZA 7)
   // await sendWelcomeEmail(workerId);
@@ -139,29 +191,34 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
  * Updates subscription status and tier
  */
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
-  console.log('🔄 Subscription updated:', subscription.id);
+  console.log("🔄 Subscription updated:", subscription.id);
 
   const customerId = subscription.customer as string;
-  
-  const status = subscription.status === 'active' ? 'active' : 
-                 subscription.status === 'canceled' ? 'cancelled' : 
-                 'inactive';
+
+  const status =
+    subscription.status === "active"
+      ? "active"
+      : subscription.status === "canceled"
+      ? "cancelled"
+      : "inactive";
 
   const { error } = await supabase
-    .from('workers')
+    .from("workers")
     .update({
       subscription_status: status,
-      subscription_end_date: new Date(subscription.current_period_end * 1000).toISOString(),
+      subscription_end_date: new Date(
+        (subscription as any).current_period_end * 1000
+      ).toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('stripe_customer_id', customerId);
+    .eq("stripe_customer_id", customerId);
 
   if (error) {
-    console.error('❌ Error updating subscription:', error);
+    console.error("❌ Error updating subscription:", error);
     return;
   }
 
-  console.log('✅ Subscription updated for customer:', customerId);
+  console.log("✅ Subscription updated for customer:", customerId);
 }
 
 /**
@@ -169,26 +226,26 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
  * Downgrades to basic tier
  */
 async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
-  console.log('❌ Subscription cancelled:', subscription.id);
+  console.log("❌ Subscription cancelled:", subscription.id);
 
   const customerId = subscription.customer as string;
 
   const { error } = await supabase
-    .from('workers')
+    .from("workers")
     .update({
-      subscription_tier: 'basic',
-      subscription_status: 'cancelled',
+      subscription_tier: "basic",
+      subscription_status: "cancelled",
       stripe_subscription_id: null,
       updated_at: new Date().toISOString(),
     })
-    .eq('stripe_customer_id', customerId);
+    .eq("stripe_customer_id", customerId);
 
   if (error) {
-    console.error('❌ Error cancelling subscription:', error);
+    console.error("❌ Error cancelling subscription:", error);
     return;
   }
 
-  console.log('✅ Subscription cancelled for customer:', customerId);
+  console.log("✅ Subscription cancelled for customer:", customerId);
 
   // TODO: Send cancellation confirmation email (FAZA 7)
 }
@@ -198,45 +255,47 @@ async function handleSubscriptionCancelled(subscription: Stripe.Subscription) {
  * Records payment in database
  */
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
-  console.log('💰 Payment succeeded:', invoice.id);
+  console.log("💰 Payment succeeded:", invoice.id);
 
   const customerId = invoice.customer as string;
 
   // Get worker ID
   const { data: worker } = await supabase
-    .from('workers')
-    .select('id')
-    .eq('stripe_customer_id', customerId)
+    .from("workers")
+    .select("id")
+    .eq("stripe_customer_id", customerId)
     .single();
 
   if (!worker) {
-    console.error('❌ Worker not found for customer:', customerId);
+    console.error("❌ Worker not found for customer:", customerId);
     return;
   }
 
   // Record payment
-  const { error } = await supabase
-    .from('subscription_payments')
-    .insert({
-      worker_id: worker.id,
-      amount: (invoice.amount_paid / 100), // Convert cents to euros
-      currency: invoice.currency.toUpperCase(),
-      payment_method: 'card',
-      status: 'completed',
-      stripe_payment_intent_id: invoice.payment_intent as string,
-      stripe_invoice_id: invoice.id,
-      stripe_charge_id: invoice.charge as string,
-      payment_date: new Date(invoice.created * 1000).toISOString(),
-      period_start: new Date(invoice.period_start * 1000).toISOString().split('T')[0],
-      period_end: new Date(invoice.period_end * 1000).toISOString().split('T')[0],
-    });
+  const { error } = await supabase.from("subscription_payments").insert({
+    worker_id: worker.id,
+    amount: invoice.amount_paid / 100, // Convert cents to euros
+    currency: invoice.currency.toUpperCase(),
+    payment_method: "card",
+    status: "completed",
+    stripe_payment_intent_id: (invoice as any).payment_intent as string,
+    stripe_invoice_id: invoice.id,
+    stripe_charge_id: (invoice as any).charge as string,
+    payment_date: new Date(invoice.created * 1000).toISOString(),
+    period_start: new Date((invoice as any).period_start * 1000)
+      .toISOString()
+      .split("T")[0],
+    period_end: new Date((invoice as any).period_end * 1000)
+      .toISOString()
+      .split("T")[0],
+  });
 
   if (error) {
-    console.error('❌ Error recording payment:', error);
+    console.error("❌ Error recording payment:", error);
     return;
   }
 
-  console.log('✅ Payment recorded for worker:', worker.id);
+  console.log("✅ Payment recorded for worker:", worker.id);
 
   // TODO: Send payment receipt email (FAZA 7)
 }
@@ -246,39 +305,41 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
  * Updates subscription status and sends alert
  */
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  console.log('⚠️ Payment failed:', invoice.id);
+  console.log("⚠️ Payment failed:", invoice.id);
 
   const customerId = invoice.customer as string;
 
   // Get worker
   const { data: worker } = await supabase
-    .from('workers')
-    .select('id, email')
-    .eq('stripe_customer_id', customerId)
+    .from("workers")
+    .select("id, email")
+    .eq("stripe_customer_id", customerId)
     .single();
 
   if (!worker) {
-    console.error('❌ Worker not found for customer:', customerId);
+    console.error("❌ Worker not found for customer:", customerId);
     return;
   }
 
   // Record failed payment
-  await supabase
-    .from('subscription_payments')
-    .insert({
-      worker_id: worker.id,
-      amount: (invoice.amount_due / 100),
-      currency: invoice.currency.toUpperCase(),
-      payment_method: 'card',
-      status: 'failed',
-      stripe_payment_intent_id: invoice.payment_intent as string,
-      stripe_invoice_id: invoice.id,
-      payment_date: new Date().toISOString(),
-      period_start: new Date(invoice.period_start * 1000).toISOString().split('T')[0],
-      period_end: new Date(invoice.period_end * 1000).toISOString().split('T')[0],
-    });
+  await supabase.from("subscription_payments").insert({
+    worker_id: worker.id,
+    amount: invoice.amount_due / 100,
+    currency: invoice.currency.toUpperCase(),
+    payment_method: "card",
+    status: "failed",
+    stripe_payment_intent_id: (invoice as any).payment_intent as string,
+    stripe_invoice_id: invoice.id,
+    payment_date: new Date().toISOString(),
+    period_start: new Date((invoice as any).period_start * 1000)
+      .toISOString()
+      .split("T")[0],
+    period_end: new Date((invoice as any).period_end * 1000)
+      .toISOString()
+      .split("T")[0],
+  });
 
-  console.log('⚠️ Failed payment recorded for worker:', worker.id);
+  console.log("⚠️ Failed payment recorded for worker:", worker.id);
 
   // TODO: Send payment failed email (FAZA 7)
 }

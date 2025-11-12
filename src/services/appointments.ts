@@ -1,74 +1,69 @@
 // @ts-nocheck
 /**
- * Appointments Service Layer
- * Handles all appointment/booking operations with Supabase
- * 
- * REQUIRED DATABASE SCHEMA (run this SQL first):
- * 
- * -- Appointments table
- * CREATE TABLE appointments (
- *   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
- *   client_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
- *   worker_id UUID REFERENCES workers(id) ON DELETE CASCADE,
- *   appointment_date DATE NOT NULL,
- *   appointment_time TIME NOT NULL,
- *   duration INT DEFAULT 60, -- minutes
- *   location TEXT,
- *   status TEXT CHECK (status IN ('pending', 'confirmed', 'completed', 'cancelled')) DEFAULT 'pending',
- *   notes TEXT,
- *   service_type TEXT,
- *   priority TEXT CHECK (priority IN ('low', 'normal', 'high', 'urgent')) DEFAULT 'normal',
- *   video_call_provider TEXT,
- *   video_call_meeting_id TEXT,
- *   video_call_join_url TEXT,
- *   video_call_password TEXT,
- *   reminder_sms BOOLEAN DEFAULT FALSE,
- *   reminder_email BOOLEAN DEFAULT FALSE,
- *   created_at TIMESTAMPTZ DEFAULT NOW(),
- *   updated_at TIMESTAMPTZ DEFAULT NOW()
- * );
- * 
- * -- Indexes
- * CREATE INDEX idx_appointments_client ON appointments(client_id);
- * CREATE INDEX idx_appointments_worker ON appointments(worker_id);
- * CREATE INDEX idx_appointments_date ON appointments(appointment_date);
- * CREATE INDEX idx_appointments_status ON appointments(status);
+ * Appointments Service Layer (UNIFIED)
+ * Handles ALL appointment types: tests, meetings, consultations
+ *
+ * DATABASE: test_appointments table (unified appointments system)
+ * Migration: 20251112_2300_unify_appointments_system.sql
+ *
+ * APPOINTMENT TYPES:
+ * - 'test' = ZZP exams, certifications (worker_id required)
+ * - 'meeting' = Client-worker meetings (client_id + worker_id)
+ * - 'consultation' = Advisory sessions
+ * - 'interview' = Job interviews
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 
 // Type definitions
-export type AppointmentStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
-export type AppointmentPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type AppointmentStatus =
+  | "pending"
+  | "confirmed"
+  | "completed"
+  | "cancelled"
+  | "scheduled";
+export type AppointmentPriority = "low" | "normal" | "high" | "urgent";
+export type AppointmentType = "test" | "meeting" | "consultation" | "interview";
 
 export interface Appointment {
   id: string;
-  client_id: string;
+  client_id?: string; // Employer/client (NULL for admin-scheduled tests)
   worker_id: string;
-  appointment_date: string;
-  appointment_time: string;
-  duration: number;
+  test_date: string; // TIMESTAMP (includes time)
+  duration_minutes: number;
   location?: string;
   status: AppointmentStatus;
   notes?: string;
-  service_type?: string;
+  appointment_type: AppointmentType; // NEW: unified type
+  service_type?: string; // e.g., 'cleaning', 'zzp_exam'
   priority: AppointmentPriority;
+  // Video call integration
   video_call_provider?: string;
   video_call_meeting_id?: string;
   video_call_join_url?: string;
   video_call_password?: string;
+  // Reminders
   reminder_sms: boolean;
   reminder_email: boolean;
+  // Test-specific fields (only for appointment_type='test')
+  test_type?: string; // DEPRECATED: use service_type
+  examiner_name?: string;
+  result?: string;
+  score?: number;
+  passed?: boolean;
+  // Metadata
+  scheduled_by?: string;
+  completed_at?: string;
+  cancelled_at?: string;
+  cancellation_reason?: string;
   created_at: string;
   updated_at: string;
   // Joined data
   client?: {
     id: string;
-    profile: {
-      full_name: string;
-      email: string;
-      phone?: string;
-    };
+    full_name: string;
+    email: string;
+    phone?: string;
   };
   worker?: {
     id: string;
@@ -83,31 +78,36 @@ export interface Appointment {
  * Fetch all appointments with client and worker data
  */
 export const fetchAllAppointments = async (): Promise<Appointment[]> => {
+  console.log("🔍 fetchAllAppointments: Starting query...");
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
+      .from("test_appointments")
+      .select(
+        `
         *,
-        client:client_id(
+        client:profiles!test_appointments_client_id_fkey(
           id,
-          profile:profiles(full_name, email, phone)
+          full_name,
+          email,
+          phone
         ),
-        worker:workers!appointments_worker_id_fkey(
+        worker:workers!test_appointments_worker_id_fkey(
           id,
-          profile:profiles(full_name, email)
+          profile:profiles!workers_profile_id_fkey(full_name, email)
         )
-      `)
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true });
+      `
+      )
+      .order("test_date", { ascending: true });
 
     if (error) {
-      console.error('Error fetching appointments:', error);
+      console.error("❌ fetchAllAppointments error:", error);
       throw error;
     }
 
+    console.log("✅ fetchAllAppointments success:", data?.length || 0, "rows");
     return data || [];
   } catch (error) {
-    console.error('fetchAllAppointments error:', error);
+    console.error("❌ fetchAllAppointments catch:", error);
     return [];
   }
 };
@@ -115,22 +115,26 @@ export const fetchAllAppointments = async (): Promise<Appointment[]> => {
 /**
  * Fetch appointments by status
  */
-export const fetchAppointmentsByStatus = async (status: AppointmentStatus): Promise<Appointment[]> => {
+export const fetchAppointmentsByStatus = async (
+  status: AppointmentStatus
+): Promise<Appointment[]> => {
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
+      .from("test_appointments")
+      .select(
+        `
         *,
-        client:client_id(id, profile:profiles(full_name, email, phone)),
-        worker:workers!appointments_worker_id_fkey(id, profile:profiles(full_name, email))
-      `)
-      .eq('status', status)
-      .order('appointment_date', { ascending: true });
+        client:profiles!test_appointments_client_id_fkey(id, full_name, email, phone),
+        worker:workers!test_appointments_worker_id_fkey(id, profile:profiles!workers_profile_id_fkey(full_name, email))
+      `
+      )
+      .eq("status", status)
+      .order("test_date", { ascending: true });
 
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('fetchAppointmentsByStatus error:', error);
+    console.error("fetchAppointmentsByStatus error:", error);
     return [];
   }
 };
@@ -144,21 +148,23 @@ export const fetchAppointmentsByDateRange = async (
 ): Promise<Appointment[]> => {
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
+      .from("test_appointments")
+      .select(
+        `
         *,
-        client:client_id(id, profile:profiles(full_name, email, phone)),
-        worker:workers!appointments_worker_id_fkey(id, profile:profiles(full_name, email))
-      `)
-      .gte('appointment_date', startDate)
-      .lte('appointment_date', endDate)
-      .order('appointment_date', { ascending: true })
-      .order('appointment_time', { ascending: true });
+        client:profiles!test_appointments_client_id_fkey(id, full_name, email, phone),
+        worker:workers!test_appointments_worker_id_fkey(id, profile:profiles!workers_profile_id_fkey(full_name, email))
+      `
+      )
+      .gte("test_date", startDate)
+      .lte("test_date", endDate)
+      .order("test_date", { ascending: true })
+      .order("test_date", { ascending: true });
 
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('fetchAppointmentsByDateRange error:', error);
+    console.error("fetchAppointmentsByDateRange error:", error);
     return [];
   }
 };
@@ -166,22 +172,26 @@ export const fetchAppointmentsByDateRange = async (
 /**
  * Fetch appointments for a specific worker
  */
-export const fetchWorkerAppointments = async (workerId: string): Promise<Appointment[]> => {
+export const fetchWorkerAppointments = async (
+  workerId: string
+): Promise<Appointment[]> => {
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
+      .from("test_appointments")
+      .select(
+        `
         *,
-        client:client_id(id, profile:profiles(full_name, email, phone)),
-        worker:workers!appointments_worker_id_fkey(id, profile:profiles(full_name, email))
-      `)
-      .eq('worker_id', workerId)
-      .order('appointment_date', { ascending: true });
+        client:profiles!test_appointments_client_id_fkey(id, full_name, email, phone),
+        worker:workers!test_appointments_worker_id_fkey(id, profile:profiles!workers_profile_id_fkey(full_name, email))
+      `
+      )
+      .eq("worker_id", workerId)
+      .order("test_date", { ascending: true });
 
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('fetchWorkerAppointments error:', error);
+    console.error("fetchWorkerAppointments error:", error);
     return [];
   }
 };
@@ -189,22 +199,26 @@ export const fetchWorkerAppointments = async (workerId: string): Promise<Appoint
 /**
  * Fetch appointments for a specific client
  */
-export const fetchClientAppointments = async (clientId: string): Promise<Appointment[]> => {
+export const fetchClientAppointments = async (
+  clientId: string
+): Promise<Appointment[]> => {
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select(`
+      .from("test_appointments")
+      .select(
+        `
         *,
-        client:client_id(id, profile:profiles(full_name, email, phone)),
-        worker:workers!appointments_worker_id_fkey(id, profile:profiles(full_name, email))
-      `)
-      .eq('client_id', clientId)
-      .order('appointment_date', { ascending: true });
+        client:profiles!test_appointments_client_id_fkey(id, full_name, email, phone),
+        worker:workers!test_appointments_worker_id_fkey(id, profile:profiles!workers_profile_id_fkey(full_name, email))
+      `
+      )
+      .eq("client_id", clientId)
+      .order("test_date", { ascending: true });
 
     if (error) throw error;
     return data || [];
   } catch (error) {
-    console.error('fetchClientAppointments error:', error);
+    console.error("fetchClientAppointments error:", error);
     return [];
   }
 };
@@ -217,19 +231,19 @@ export const createAppointment = async (
 ): Promise<Appointment | null> => {
   try {
     const { data, error } = await supabase
-      .from('appointments')
+      .from("test_appointments")
       .insert(appointmentData)
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating appointment:', error);
+      console.error("Error creating appointment:", error);
       return null;
     }
 
     return data;
   } catch (error) {
-    console.error('createAppointment error:', error);
+    console.error("createAppointment error:", error);
     return null;
   }
 };
@@ -243,18 +257,18 @@ export const updateAppointment = async (
 ): Promise<boolean> => {
   try {
     const { error } = await supabase
-      .from('appointments')
+      .from("test_appointments")
       .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq('id', appointmentId);
+      .eq("id", appointmentId);
 
     if (error) {
-      console.error('Error updating appointment:', error);
+      console.error("Error updating appointment:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('updateAppointment error:', error);
+    console.error("updateAppointment error:", error);
     return false;
   }
 };
@@ -268,18 +282,18 @@ export const updateAppointmentStatus = async (
 ): Promise<boolean> => {
   try {
     const { error } = await supabase
-      .from('appointments')
+      .from("test_appointments")
       .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', appointmentId);
+      .eq("id", appointmentId);
 
     if (error) {
-      console.error('Error updating appointment status:', error);
+      console.error("Error updating appointment status:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('updateAppointmentStatus error:', error);
+    console.error("updateAppointmentStatus error:", error);
     return false;
   }
 };
@@ -287,42 +301,50 @@ export const updateAppointmentStatus = async (
 /**
  * Confirm appointment
  */
-export const confirmAppointment = async (appointmentId: string): Promise<boolean> => {
-  return await updateAppointmentStatus(appointmentId, 'confirmed');
+export const confirmAppointment = async (
+  appointmentId: string
+): Promise<boolean> => {
+  return await updateAppointmentStatus(appointmentId, "confirmed");
 };
 
 /**
  * Cancel appointment
  */
-export const cancelAppointment = async (appointmentId: string): Promise<boolean> => {
-  return await updateAppointmentStatus(appointmentId, 'cancelled');
+export const cancelAppointment = async (
+  appointmentId: string
+): Promise<boolean> => {
+  return await updateAppointmentStatus(appointmentId, "cancelled");
 };
 
 /**
  * Complete appointment
  */
-export const completeAppointment = async (appointmentId: string): Promise<boolean> => {
-  return await updateAppointmentStatus(appointmentId, 'completed');
+export const completeAppointment = async (
+  appointmentId: string
+): Promise<boolean> => {
+  return await updateAppointmentStatus(appointmentId, "completed");
 };
 
 /**
  * Delete appointment
  */
-export const deleteAppointment = async (appointmentId: string): Promise<boolean> => {
+export const deleteAppointment = async (
+  appointmentId: string
+): Promise<boolean> => {
   try {
     const { error } = await supabase
-      .from('appointments')
+      .from("test_appointments")
       .delete()
-      .eq('id', appointmentId);
+      .eq("id", appointmentId);
 
     if (error) {
-      console.error('Error deleting appointment:', error);
+      console.error("Error deleting appointment:", error);
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error('deleteAppointment error:', error);
+    console.error("deleteAppointment error:", error);
     return false;
   }
 };
@@ -336,18 +358,18 @@ export const bulkUpdateAppointments = async (
 ): Promise<number> => {
   try {
     const { error } = await supabase
-      .from('appointments')
+      .from("test_appointments")
       .update({ ...updates, updated_at: new Date().toISOString() })
-      .in('id', appointmentIds);
+      .in("id", appointmentIds);
 
     if (error) {
-      console.error('Error bulk updating appointments:', error);
+      console.error("Error bulk updating appointments:", error);
       return 0;
     }
 
     return appointmentIds.length;
   } catch (error) {
-    console.error('bulkUpdateAppointments error:', error);
+    console.error("bulkUpdateAppointments error:", error);
     return 0;
   }
 };
@@ -368,37 +390,46 @@ export const getAppointmentStats = async (): Promise<{
 }> => {
   try {
     const { data: appointments, error } = await supabase
-      .from('appointments')
-      .select('status, appointment_date, service_type');
+      .from("test_appointments")
+      .select("status, test_date, service_type");
 
     if (error) throw error;
 
-    const today = new Date().toISOString().split('T')[0];
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+    const monthAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
 
     const stats = {
       total: appointments?.length || 0,
-      pending: appointments?.filter(a => a.status === 'pending').length || 0,
-      confirmed: appointments?.filter(a => a.status === 'confirmed').length || 0,
-      completed: appointments?.filter(a => a.status === 'completed').length || 0,
-      cancelled: appointments?.filter(a => a.status === 'cancelled').length || 0,
-      today: appointments?.filter(a => a.appointment_date === today).length || 0,
-      thisWeek: appointments?.filter(a => a.appointment_date >= weekAgo).length || 0,
-      thisMonth: appointments?.filter(a => a.appointment_date >= monthAgo).length || 0,
+      pending: appointments?.filter((a) => a.status === "pending").length || 0,
+      confirmed:
+        appointments?.filter((a) => a.status === "confirmed").length || 0,
+      completed:
+        appointments?.filter((a) => a.status === "completed").length || 0,
+      cancelled:
+        appointments?.filter((a) => a.status === "cancelled").length || 0,
+      today: appointments?.filter((a) => a.test_date === today).length || 0,
+      thisWeek: appointments?.filter((a) => a.test_date >= weekAgo).length || 0,
+      thisMonth:
+        appointments?.filter((a) => a.test_date >= monthAgo).length || 0,
       byServiceType: {} as Record<string, number>,
     };
 
     // Count by service type
-    appointments?.forEach(app => {
+    appointments?.forEach((app) => {
       if (app.service_type) {
-        stats.byServiceType[app.service_type] = (stats.byServiceType[app.service_type] || 0) + 1;
+        stats.byServiceType[app.service_type] =
+          (stats.byServiceType[app.service_type] || 0) + 1;
       }
     });
 
     return stats;
   } catch (error) {
-    console.error('getAppointmentStats error:', error);
+    console.error("getAppointmentStats error:", error);
     return {
       total: 0,
       pending: 0,
@@ -424,11 +455,11 @@ export const checkTimeSlotAvailability = async (
 ): Promise<boolean> => {
   try {
     const { data, error } = await supabase
-      .from('appointments')
-      .select('appointment_time, duration')
-      .eq('worker_id', workerId)
-      .eq('appointment_date', date)
-      .neq('status', 'cancelled');
+      .from("test_appointments")
+      .select("test_date, duration")
+      .eq("worker_id", workerId)
+      .eq("test_date", date)
+      .neq("status", "cancelled");
 
     if (error) throw error;
 
@@ -437,8 +468,10 @@ export const checkTimeSlotAvailability = async (
     const requestedEnd = new Date(requestedStart.getTime() + duration * 60000);
 
     for (const appointment of data || []) {
-      const existingStart = new Date(`2000-01-01T${appointment.appointment_time}`);
-      const existingEnd = new Date(existingStart.getTime() + appointment.duration * 60000);
+      const existingStart = new Date(`2000-01-01T${appointment.test_date}`);
+      const existingEnd = new Date(
+        existingStart.getTime() + appointment.duration * 60000
+      );
 
       // Check for overlap
       if (
@@ -452,7 +485,7 @@ export const checkTimeSlotAvailability = async (
 
     return true; // Slot is available
   } catch (error) {
-    console.error('checkTimeSlotAvailability error:', error);
+    console.error("checkTimeSlotAvailability error:", error);
     return false;
   }
 };
@@ -461,8 +494,10 @@ export const checkTimeSlotAvailability = async (
  * Get upcoming appointments (next 7 days)
  */
 export const getUpcomingAppointments = async (): Promise<Appointment[]> => {
-  const today = new Date().toISOString().split('T')[0];
-  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
+  const today = new Date().toISOString().split("T")[0];
+  const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
+
   return await fetchAppointmentsByDateRange(today, nextWeek);
 };

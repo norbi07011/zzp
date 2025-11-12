@@ -24,12 +24,12 @@ export interface CertificateWithWorker extends Certificate {
  */
 export async function fetchAllCertificates(): Promise<CertificateWithWorker[]> {
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select(`
       *,
-      worker:v_workers!inner(
+      worker:workers!inner(
         id,
-        profile:v_profiles!inner(
+        profile:profiles!workers_profile_id_fkey(
           full_name,
           email
         )
@@ -50,7 +50,7 @@ export async function fetchAllCertificates(): Promise<CertificateWithWorker[]> {
  */
 export async function fetchCertificatesByWorker(workerId: string): Promise<Certificate[]> {
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select('*')
     .eq('worker_id', workerId)
     .order('created_at', { ascending: false });
@@ -72,12 +72,12 @@ export async function fetchExpiringCertificates(daysUntilExpiry: number = 30): P
   futureDate.setDate(today.getDate() + daysUntilExpiry);
 
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select(`
       *,
-      worker:v_workers!inner(
+      worker:workers!inner(
         id,
-        profile:v_profiles!inner(
+        profile:profiles!workers_profile_id_fkey(
           full_name,
           email
         )
@@ -103,12 +103,12 @@ export async function fetchExpiredCertificates(): Promise<CertificateWithWorker[
   const today = new Date().toISOString().split('T')[0];
 
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select(`
       *,
-      worker:v_workers!inner(
+      worker:workers!inner(
         id,
-        profile:v_profiles!inner(
+        profile:profiles!workers_profile_id_fkey(
           full_name,
           email
         )
@@ -131,7 +131,7 @@ export async function fetchExpiredCertificates(): Promise<CertificateWithWorker[
  */
 export async function createCertificate(certificate: CertificateInsert): Promise<Certificate | null> {
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .insert(certificate as any)
     .select()
     .single();
@@ -149,7 +149,7 @@ export async function createCertificate(certificate: CertificateInsert): Promise
  */
 export async function updateCertificate(certId: string, updates: CertificateUpdate): Promise<Certificate | null> {
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .update(updates as any)
     .eq('id', certId)
     .select()
@@ -169,14 +169,14 @@ export async function updateCertificate(certId: string, updates: CertificateUpda
 export async function deleteCertificate(certId: string): Promise<boolean> {
   // First, get certificate to find file_url for storage deletion
   const { data: cert } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select('file_url')
     .eq('id', certId)
     .single();
 
   // Delete from database
   const { error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .delete()
     .eq('id', certId);
 
@@ -206,7 +206,7 @@ export async function deleteCertificate(certId: string): Promise<boolean> {
  */
 export async function verifyCertificate(certId: string): Promise<boolean> {
   const { error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .update({ verified: true } as any)
     .eq('id', certId);
 
@@ -223,7 +223,7 @@ export async function verifyCertificate(certId: string): Promise<boolean> {
  */
 export async function unverifyCertificate(certId: string): Promise<boolean> {
   const { error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .update({ verified: false } as any)
     .eq('id', certId);
 
@@ -240,7 +240,7 @@ export async function unverifyCertificate(certId: string): Promise<boolean> {
  */
 export async function updateCertificateOCR(certId: string, ocrData: any): Promise<boolean> {
   const { error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .update({ ocr_data: ocrData } as any)
     .eq('id', certId);
 
@@ -257,11 +257,11 @@ export async function updateCertificateOCR(certId: string, ocrData: any): Promis
  */
 export async function getCertificateStats() {
   const { count: totalCerts } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select('*', { count: 'exact', head: true });
 
   const { count: verifiedCerts } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select('*', { count: 'exact', head: true })
     .eq('verified', true);
 
@@ -270,14 +270,14 @@ export async function getCertificateStats() {
   futureDate.setDate(futureDate.getDate() + 30);
 
   const { count: expiringCerts } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select('*', { count: 'exact', head: true })
     .not('expiry_date', 'is', null)
     .gte('expiry_date', today)
     .lte('expiry_date', futureDate.toISOString().split('T')[0]);
 
   const { count: expiredCerts } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select('*', { count: 'exact', head: true })
     .not('expiry_date', 'is', null)
     .lt('expiry_date', today);
@@ -296,7 +296,7 @@ export async function getCertificateStats() {
  */
 export async function bulkVerifyCertificates(certIds: string[]): Promise<number> {
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .update({ verified: true } as any)
     .in('id', certIds)
     .select();
@@ -315,11 +315,11 @@ export async function bulkVerifyCertificates(certIds: string[]): Promise<number>
 export async function sendRenewalReminders(certIds: string[]): Promise<number> {
   // Fetch certificates with worker emails
   const { data: certificates } = await supabase
-    .from('v_certificates')
+    .from('certificates')
     .select(`
       *,
-      worker:v_workers!inner(
-        profile:v_profiles!inner(
+      worker:workers!inner(
+        profile:profiles!inner(
           email,
           full_name
         )

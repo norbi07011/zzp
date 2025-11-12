@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
 
 // Type assertion for new tables (until database.types.ts is regenerated)
 const supabaseAny = supabase as any;
@@ -31,6 +31,7 @@ export interface Accountant {
   rating: number;
   rating_count: number;
   total_clients: number;
+  profile_views?: number;
   years_experience: number;
   is_verified: boolean;
   is_active: boolean;
@@ -44,7 +45,7 @@ export interface AccountantService {
   service_type: string;
   name: string;
   description?: string;
-  price_type: 'fixed' | 'hourly' | 'monthly' | 'custom';
+  price_type: "fixed" | "hourly" | "monthly" | "custom";
   price_amount?: number;
   price_from?: number;
   price_unit?: string;
@@ -73,7 +74,16 @@ export interface AccountantForm {
 export interface FormField {
   name: string;
   label: string;
-  type: 'text' | 'number' | 'email' | 'tel' | 'date' | 'textarea' | 'select' | 'checkbox' | 'file';
+  type:
+    | "text"
+    | "number"
+    | "email"
+    | "tel"
+    | "date"
+    | "textarea"
+    | "select"
+    | "checkbox"
+    | "file";
   required: boolean;
   placeholder?: string;
   options?: string[]; // For select/checkbox
@@ -87,13 +97,13 @@ export interface FormSubmission {
   form_id: string;
   accountant_id: string;
   submitter_id: string;
-  submitter_type: 'worker' | 'employer';
+  submitter_type: "worker" | "employer";
   submitter_name?: string;
   submitter_email?: string;
   submitter_phone?: string;
   form_data: Record<string, any>;
   attachments?: string[];
-  status: 'pending' | 'in_progress' | 'completed' | 'rejected';
+  status: "pending" | "in_progress" | "completed" | "rejected";
   accountant_response?: string;
   accountant_files?: string[];
   submitted_at: string;
@@ -105,7 +115,7 @@ export interface AccountantReview {
   id: string;
   accountant_id: string;
   reviewer_id: string;
-  reviewer_type: 'worker' | 'employer';
+  reviewer_type: "worker" | "employer";
   reviewer_name?: string;
   client_name?: string;
   rating: number;
@@ -115,7 +125,7 @@ export interface AccountantReview {
   timeliness_rating?: number;
   comment?: string;
   would_recommend: boolean;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   created_at: string;
 }
 
@@ -169,15 +179,17 @@ export interface UpdateAccountantData {
 /**
  * Get accountant by ID
  */
-export async function getAccountant(accountantId: string): Promise<Accountant | null> {
+export async function getAccountant(
+  accountantId: string
+): Promise<Accountant | null> {
   const { data, error } = await supabaseAny
-    .from('accountants')
-    .select('*')
-    .eq('id', accountantId)
+    .from("accountants")
+    .select("*")
+    .eq("id", accountantId)
     .single();
 
   if (error) {
-    console.error('Error fetching accountant:', error);
+    console.error("Error fetching accountant:", error);
     return null;
   }
 
@@ -187,19 +199,21 @@ export async function getAccountant(accountantId: string): Promise<Accountant | 
 /**
  * Get accountant by profile ID
  */
-export async function getAccountantByProfileId(profileId: string): Promise<Accountant | null> {
+export async function getAccountantByProfileId(
+  profileId: string
+): Promise<Accountant | null> {
   const { data, error } = await supabaseAny
-    .from('accountants')
-    .select('*')
-    .eq('profile_id', profileId)
+    .from("accountants")
+    .select("*")
+    .eq("profile_id", profileId)
     .single();
 
   if (error) {
-    if (error.code === 'PGRST116') {
+    if (error.code === "PGRST116") {
       // No rows returned
       return null;
     }
-    console.error('Error fetching accountant by profile:', error);
+    console.error("Error fetching accountant by profile:", error);
     return null;
   }
 
@@ -216,31 +230,31 @@ export async function getAccountants(filters?: {
   minRating?: number;
 }): Promise<Accountant[]> {
   let query = supabaseAny
-    .from('accountants')
-    .select('*')
-    .eq('is_active', true)
-    .order('rating', { ascending: false });
+    .from("accountants")
+    .select("*")
+    .eq("is_active", true)
+    .order("rating", { ascending: false });
 
   if (filters?.city) {
-    query = query.eq('city', filters.city);
+    query = query.eq("city", filters.city);
   }
 
   if (filters?.specializations && filters.specializations.length > 0) {
-    query = query.contains('specializations', filters.specializations);
+    query = query.contains("specializations", filters.specializations);
   }
 
   if (filters?.languages && filters.languages.length > 0) {
-    query = query.contains('languages', filters.languages);
+    query = query.contains("languages", filters.languages);
   }
 
   if (filters?.minRating) {
-    query = query.gte('rating', filters.minRating);
+    query = query.gte("rating", filters.minRating);
   }
 
   const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching accountants:', error);
+    console.error("Error fetching accountants:", error);
     return [];
   }
 
@@ -250,20 +264,22 @@ export async function getAccountants(filters?: {
 /**
  * Create new accountant profile
  */
-export async function createAccountant(accountantData: CreateAccountantData): Promise<Accountant | null> {
+export async function createAccountant(
+  accountantData: CreateAccountantData
+): Promise<Accountant | null> {
   const { data, error } = await supabaseAny
-    .from('accountants')
+    .from("accountants")
     .insert({
       ...accountantData,
-      country: accountantData.country || 'Nederland',
-      languages: accountantData.languages || ['Nederlands'],
+      country: accountantData.country || "Nederland",
+      languages: accountantData.languages || ["Nederlands"],
       specializations: accountantData.specializations || [],
     })
     .select()
     .single();
 
   if (error) {
-    console.error('Error creating accountant:', error);
+    console.error("Error creating accountant:", error);
     throw error;
   }
 
@@ -278,14 +294,14 @@ export async function updateAccountant(
   updates: UpdateAccountantData
 ): Promise<Accountant | null> {
   const { data, error } = await supabaseAny
-    .from('accountants')
+    .from("accountants")
     .update(updates)
-    .eq('id', accountantId)
+    .eq("id", accountantId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error updating accountant:', error);
+    console.error("Error updating accountant:", error);
     throw error;
   }
 
@@ -297,12 +313,12 @@ export async function updateAccountant(
  */
 export async function deleteAccountant(accountantId: string): Promise<boolean> {
   const { error } = await supabaseAny
-    .from('accountants')
+    .from("accountants")
     .update({ is_active: false })
-    .eq('id', accountantId);
+    .eq("id", accountantId);
 
   if (error) {
-    console.error('Error deleting accountant:', error);
+    console.error("Error deleting accountant:", error);
     return false;
   }
 
@@ -316,16 +332,18 @@ export async function deleteAccountant(accountantId: string): Promise<boolean> {
 /**
  * Get all services for an accountant
  */
-export async function getAccountantServices(accountantId: string): Promise<AccountantService[]> {
+export async function getAccountantServices(
+  accountantId: string
+): Promise<AccountantService[]> {
   const { data, error } = await supabaseAny
-    .from('accountant_services')
-    .select('*')
-    .eq('accountant_id', accountantId)
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
+    .from("accountant_services")
+    .select("*")
+    .eq("accountant_id", accountantId)
+    .eq("is_active", true)
+    .order("display_order", { ascending: true });
 
   if (error) {
-    console.error('Error fetching services:', error);
+    console.error("Error fetching services:", error);
     return [];
   }
 
@@ -336,16 +354,16 @@ export async function getAccountantServices(accountantId: string): Promise<Accou
  * Create new service
  */
 export async function createAccountantService(
-  serviceData: Omit<AccountantService, 'id' | 'created_at' | 'updated_at'>
+  serviceData: Omit<AccountantService, "id" | "created_at" | "updated_at">
 ): Promise<AccountantService | null> {
   const { data, error } = await supabaseAny
-    .from('accountant_services')
+    .from("accountant_services")
     .insert(serviceData)
     .select()
     .single();
 
   if (error) {
-    console.error('Error creating service:', error);
+    console.error("Error creating service:", error);
     throw error;
   }
 
@@ -357,17 +375,22 @@ export async function createAccountantService(
  */
 export async function updateAccountantService(
   serviceId: string,
-  updates: Partial<Omit<AccountantService, 'id' | 'accountant_id' | 'created_at' | 'updated_at'>>
+  updates: Partial<
+    Omit<
+      AccountantService,
+      "id" | "accountant_id" | "created_at" | "updated_at"
+    >
+  >
 ): Promise<AccountantService | null> {
   const { data, error } = await supabaseAny
-    .from('accountant_services')
+    .from("accountant_services")
     .update(updates)
-    .eq('id', serviceId)
+    .eq("id", serviceId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error updating service:', error);
+    console.error("Error updating service:", error);
     throw error;
   }
 
@@ -377,14 +400,16 @@ export async function updateAccountantService(
 /**
  * Delete service (soft delete)
  */
-export async function deleteAccountantService(serviceId: string): Promise<boolean> {
+export async function deleteAccountantService(
+  serviceId: string
+): Promise<boolean> {
   const { error } = await supabaseAny
-    .from('accountant_services')
+    .from("accountant_services")
     .update({ is_active: false })
-    .eq('id', serviceId);
+    .eq("id", serviceId);
 
   if (error) {
-    console.error('Error deleting service:', error);
+    console.error("Error deleting service:", error);
     return false;
   }
 
@@ -398,15 +423,17 @@ export async function deleteAccountantService(serviceId: string): Promise<boolea
 /**
  * Get all forms for an accountant
  */
-export async function getAccountantForms(accountantId: string): Promise<AccountantForm[]> {
+export async function getAccountantForms(
+  accountantId: string
+): Promise<AccountantForm[]> {
   const { data, error } = await supabaseAny
-    .from('accountant_forms')
-    .select('*')
-    .eq('accountant_id', accountantId)
-    .eq('is_active', true);
+    .from("accountant_forms")
+    .select("*")
+    .eq("accountant_id", accountantId)
+    .eq("is_active", true);
 
   if (error) {
-    console.error('Error fetching forms:', error);
+    console.error("Error fetching forms:", error);
     return [];
   }
 
@@ -416,15 +443,17 @@ export async function getAccountantForms(accountantId: string): Promise<Accounta
 /**
  * Get single form by ID
  */
-export async function getAccountantForm(formId: string): Promise<AccountantForm | null> {
+export async function getAccountantForm(
+  formId: string
+): Promise<AccountantForm | null> {
   const { data, error } = await supabaseAny
-    .from('accountant_forms')
-    .select('*')
-    .eq('id', formId)
+    .from("accountant_forms")
+    .select("*")
+    .eq("id", formId)
     .single();
 
   if (error) {
-    console.error('Error fetching form:', error);
+    console.error("Error fetching form:", error);
     return null;
   }
 
@@ -435,16 +464,16 @@ export async function getAccountantForm(formId: string): Promise<AccountantForm 
  * Create new form
  */
 export async function createAccountantForm(
-  formData: Omit<AccountantForm, 'id' | 'created_at' | 'updated_at'>
+  formData: Omit<AccountantForm, "id" | "created_at" | "updated_at">
 ): Promise<AccountantForm | null> {
   const { data, error } = await supabaseAny
-    .from('accountant_forms')
+    .from("accountant_forms")
     .insert(formData)
     .select()
     .single();
 
   if (error) {
-    console.error('Error creating form:', error);
+    console.error("Error creating form:", error);
     throw error;
   }
 
@@ -456,17 +485,19 @@ export async function createAccountantForm(
  */
 export async function updateAccountantForm(
   formId: string,
-  updates: Partial<Omit<AccountantForm, 'id' | 'accountant_id' | 'created_at' | 'updated_at'>>
+  updates: Partial<
+    Omit<AccountantForm, "id" | "accountant_id" | "created_at" | "updated_at">
+  >
 ): Promise<AccountantForm | null> {
   const { data, error } = await supabaseAny
-    .from('accountant_forms')
+    .from("accountant_forms")
     .update(updates)
-    .eq('id', formId)
+    .eq("id", formId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error updating form:', error);
+    console.error("Error updating form:", error);
     throw error;
   }
 
@@ -478,12 +509,12 @@ export async function updateAccountantForm(
  */
 export async function deleteAccountantForm(formId: string): Promise<boolean> {
   const { error } = await supabaseAny
-    .from('accountant_forms')
+    .from("accountant_forms")
     .update({ is_active: false })
-    .eq('id', formId);
+    .eq("id", formId);
 
   if (error) {
-    console.error('Error deleting form:', error);
+    console.error("Error deleting form:", error);
     return false;
   }
 
@@ -498,16 +529,19 @@ export async function deleteAccountantForm(formId: string): Promise<boolean> {
  * Submit a form
  */
 export async function submitForm(
-  submissionData: Omit<FormSubmission, 'id' | 'submitted_at' | 'updated_at' | 'completed_at'>
+  submissionData: Omit<
+    FormSubmission,
+    "id" | "submitted_at" | "updated_at" | "completed_at"
+  >
 ): Promise<FormSubmission | null> {
   const { data, error } = await supabaseAny
-    .from('form_submissions')
+    .from("form_submissions")
     .insert(submissionData)
     .select()
     .single();
 
   if (error) {
-    console.error('Error submitting form:', error);
+    console.error("Error submitting form:", error);
     throw error;
   }
 
@@ -520,23 +554,23 @@ export async function submitForm(
 export async function getAccountantSubmissions(
   accountantId: string,
   filters?: {
-    status?: FormSubmission['status'];
+    status?: FormSubmission["status"];
   }
 ): Promise<FormSubmission[]> {
   let query = supabaseAny
-    .from('form_submissions')
-    .select('*')
-    .eq('accountant_id', accountantId)
-    .order('submitted_at', { ascending: false });
+    .from("form_submissions")
+    .select("*")
+    .eq("accountant_id", accountantId)
+    .order("submitted_at", { ascending: false });
 
   if (filters?.status) {
-    query = query.eq('status', filters.status);
+    query = query.eq("status", filters.status);
   }
 
   const { data, error } = await query;
 
   if (error) {
-    console.error('Error fetching submissions:', error);
+    console.error("Error fetching submissions:", error);
     return [];
   }
 
@@ -546,15 +580,17 @@ export async function getAccountantSubmissions(
 /**
  * Get submissions by user (submitter)
  */
-export async function getUserSubmissions(userId: string): Promise<FormSubmission[]> {
+export async function getUserSubmissions(
+  userId: string
+): Promise<FormSubmission[]> {
   const { data, error } = await supabaseAny
-    .from('form_submissions')
-    .select('*')
-    .eq('submitter_id', userId)
-    .order('submitted_at', { ascending: false });
+    .from("form_submissions")
+    .select("*")
+    .eq("submitter_id", userId)
+    .order("submitted_at", { ascending: false });
 
   if (error) {
-    console.error('Error fetching user submissions:', error);
+    console.error("Error fetching user submissions:", error);
     return [];
   }
 
@@ -567,26 +603,26 @@ export async function getUserSubmissions(userId: string): Promise<FormSubmission
 export async function updateSubmission(
   submissionId: string,
   updates: {
-    status?: FormSubmission['status'];
+    status?: FormSubmission["status"];
     accountant_response?: string;
     accountant_files?: string[];
   }
 ): Promise<FormSubmission | null> {
   const updateData: any = { ...updates };
 
-  if (updates.status === 'completed') {
+  if (updates.status === "completed") {
     updateData.completed_at = new Date().toISOString();
   }
 
   const { data, error } = await supabaseAny
-    .from('form_submissions')
+    .from("form_submissions")
     .update(updateData)
-    .eq('id', submissionId)
+    .eq("id", submissionId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error updating submission:', error);
+    console.error("Error updating submission:", error);
     throw error;
   }
 
@@ -598,38 +634,51 @@ export async function updateSubmission(
 // =====================================================
 
 /**
- * Get reviews for an accountant
+ * Get reviews for an accountant (PUBLIC - with employer details)
  */
-export async function getAccountantReviews(accountantId: string): Promise<AccountantReview[]> {
-  const { data, error } = await supabaseAny
-    .from('accountant_reviews')
-    .select('*')
-    .eq('accountant_id', accountantId)
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false });
+export async function getAccountantReviews(
+  accountantId: string,
+  limit: number = 50
+): Promise<AccountantReview[]> {
+  console.log("📋 Fetching reviews for accountant:", accountantId);
 
-  if (error) {
-    console.error('Error fetching reviews:', error);
+  try {
+    // SIMPLIFIED - no employer JOIN because FK doesn't exist yet
+    const { data, error } = await supabaseAny
+      .from("accountant_reviews")
+      .select("*")
+      .eq("accountant_id", accountantId)
+      .eq("status", "approved")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("❌ Error fetching accountant reviews:", error);
+      return [];
+    }
+
+    console.log(`✅ Loaded ${data?.length || 0} reviews for accountant`);
+    return data || [];
+  } catch (error) {
+    console.error("❌ Error in getAccountantReviews:", error);
     return [];
   }
-
-  return (data || []) as any;
 }
 
 /**
  * Create review
  */
 export async function createAccountantReview(
-  reviewData: Omit<AccountantReview, 'id' | 'created_at'>
+  reviewData: Omit<AccountantReview, "id" | "created_at">
 ): Promise<AccountantReview | null> {
   const { data, error } = await supabaseAny
-    .from('accountant_reviews')
+    .from("accountant_reviews")
     .insert(reviewData)
     .select()
     .single();
 
   if (error) {
-    console.error('Error creating review:', error);
+    console.error("Error creating review:", error);
     throw error;
   }
 
@@ -641,17 +690,22 @@ export async function createAccountantReview(
  */
 export async function updateAccountantReview(
   reviewId: string,
-  updates: Partial<Omit<AccountantReview, 'id' | 'accountant_id' | 'reviewer_id' | 'created_at'>>
+  updates: Partial<
+    Omit<
+      AccountantReview,
+      "id" | "accountant_id" | "reviewer_id" | "created_at"
+    >
+  >
 ): Promise<AccountantReview | null> {
   const { data, error } = await supabaseAny
-    .from('accountant_reviews')
+    .from("accountant_reviews")
     .update(updates)
-    .eq('id', reviewId)
+    .eq("id", reviewId)
     .select()
     .single();
 
   if (error) {
-    console.error('Error updating review:', error);
+    console.error("Error updating review:", error);
     throw error;
   }
 
@@ -686,7 +740,13 @@ export async function getAccountantReviewStats(accountantId: string): Promise<{
     };
   }
 
-  const ratingDistribution: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  const ratingDistribution: Record<number, number> = {
+    1: 0,
+    2: 0,
+    3: 0,
+    4: 0,
+    5: 0,
+  };
   let totalProfessionalism = 0;
   let totalCommunication = 0;
   let totalQuality = 0;
@@ -727,10 +787,15 @@ export async function getAccountantReviewStats(accountantId: string): Promise<{
     averageRating: totalRating / reviews.length,
     totalReviews: reviews.length,
     ratingDistribution,
-    averageProfessionalism: professionalismCount > 0 ? totalProfessionalism / professionalismCount : 0,
-    averageCommunication: communicationCount > 0 ? totalCommunication / communicationCount : 0,
+    averageProfessionalism:
+      professionalismCount > 0
+        ? totalProfessionalism / professionalismCount
+        : 0,
+    averageCommunication:
+      communicationCount > 0 ? totalCommunication / communicationCount : 0,
     averageQuality: qualityCount > 0 ? totalQuality / qualityCount : 0,
-    averageTimeliness: timelinessCount > 0 ? totalTimeliness / timelinessCount : 0,
+    averageTimeliness:
+      timelinessCount > 0 ? totalTimeliness / timelinessCount : 0,
     recommendationRate: (recommendCount / reviews.length) * 100,
   };
 }
@@ -755,9 +820,9 @@ export async function searchAccountants(searchParams: {
   offset?: number;
 }): Promise<{ accountants: Accountant[]; total: number }> {
   let query = supabaseAny
-    .from('accountants')
-    .select('*', { count: 'exact' })
-    .eq('is_active', true);
+    .from("accountants")
+    .select("*", { count: "exact" })
+    .eq("is_active", true);
 
   // Text search in name, company_name, bio
   if (searchParams.query) {
@@ -768,27 +833,27 @@ export async function searchAccountants(searchParams: {
 
   // City filter
   if (searchParams.city) {
-    query = query.eq('city', searchParams.city);
+    query = query.eq("city", searchParams.city);
   }
 
   // Specializations filter
   if (searchParams.specializations && searchParams.specializations.length > 0) {
-    query = query.contains('specializations', searchParams.specializations);
+    query = query.contains("specializations", searchParams.specializations);
   }
 
   // Languages filter
   if (searchParams.languages && searchParams.languages.length > 0) {
-    query = query.contains('languages', searchParams.languages);
+    query = query.contains("languages", searchParams.languages);
   }
 
   // Rating filter
   if (searchParams.minRating) {
-    query = query.gte('rating', searchParams.minRating);
+    query = query.gte("rating", searchParams.minRating);
   }
 
   // Verified filter
   if (searchParams.isVerified !== undefined) {
-    query = query.eq('is_verified', searchParams.isVerified);
+    query = query.eq("is_verified", searchParams.isVerified);
   }
 
   // Pagination
@@ -796,16 +861,19 @@ export async function searchAccountants(searchParams: {
     query = query.limit(searchParams.limit);
   }
   if (searchParams.offset) {
-    query = query.range(searchParams.offset, searchParams.offset + (searchParams.limit || 10) - 1);
+    query = query.range(
+      searchParams.offset,
+      searchParams.offset + (searchParams.limit || 10) - 1
+    );
   }
 
   // Order by rating
-  query = query.order('rating', { ascending: false });
+  query = query.order("rating", { ascending: false });
 
   const { data, error, count } = await query;
 
   if (error) {
-    console.error('Error searching accountants:', error);
+    console.error("Error searching accountants:", error);
     return { accountants: [], total: 0 };
   }
 
@@ -817,16 +885,443 @@ export async function searchAccountants(searchParams: {
  */
 export async function getAccountantCities(): Promise<string[]> {
   const { data, error } = await supabaseAny
-    .from('accountants')
-    .select('city')
-    .eq('is_active', true)
-    .not('city', 'is', null);
+    .from("accountants")
+    .select("city")
+    .eq("is_active", true)
+    .not("city", "is", null);
 
   if (error) {
-    console.error('Error fetching cities:', error);
+    console.error("Error fetching cities:", error);
     return [];
   }
 
-  const uniqueCities = [...new Set(data.map((item: any) => item.city))].filter(Boolean) as string[];
+  const uniqueCities = [...new Set(data.map((item: any) => item.city))].filter(
+    Boolean
+  ) as string[];
   return uniqueCities.sort();
+}
+
+// =====================================================
+// PUBLIC PROFILE FUNCTIONS (NEW - 2025-11-11)
+// =====================================================
+
+/**
+ * Get accountant public profile by ID (with average rating and total reviews)
+ */
+export async function getAccountantById(
+  accountantId: string
+): Promise<Accountant | null> {
+  console.log("🔍 Fetching accountant by ID:", accountantId);
+
+  try {
+    // Fetch accountant profile
+    const { data: accountant, error: accountantError } = await supabaseAny
+      .from("accountants")
+      .select("*")
+      .eq("id", accountantId)
+      .maybeSingle();
+
+    if (accountantError) {
+      console.error("❌ Error fetching accountant:", accountantError);
+      return null;
+    }
+
+    if (!accountant) {
+      console.error("❌ Accountant not found:", accountantId);
+      return null;
+    }
+
+    if (!accountant) {
+      console.warn("⚠️ Accountant not found:", accountantId);
+      return null;
+    }
+
+    // Fetch review statistics
+    const { data: reviews, error: reviewsError } = await supabaseAny
+      .from("accountant_reviews")
+      .select("rating")
+      .eq("accountant_id", accountantId);
+
+    if (reviewsError) {
+      console.error("❌ Error fetching reviews for stats:", reviewsError);
+      // Continue without stats
+    }
+
+    // Calculate average rating and count
+    const totalReviews = reviews?.length || 0;
+    const averageRating =
+      totalReviews > 0
+        ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
+          totalReviews
+        : 0;
+
+    console.log("✅ Accountant profile loaded:", {
+      id: accountant.id,
+      company_name: accountant.company_name,
+      averageRating: averageRating.toFixed(1),
+      totalReviews,
+      calculatedRating: parseFloat(averageRating.toFixed(1)),
+      reviewsRaw: reviews,
+    });
+
+    return {
+      ...accountant,
+      rating: parseFloat(averageRating.toFixed(1)),
+      rating_count: totalReviews,
+    };
+  } catch (error) {
+    console.error("❌ Error in getAccountantById:", error);
+    return null;
+  }
+}
+
+/**
+ * Track profile view for analytics
+ */
+/**
+ * Track profile view for analytics
+ */
+export async function trackAccountantProfileView(
+  accountantId: string,
+  viewerProfileId?: string
+): Promise<void> {
+  console.log("👁️ Tracking profile view:", { accountantId, viewerProfileId });
+
+  try {
+    // Fetch current view count
+    const { data: accountant, error: fetchError } = await supabaseAny
+      .from("accountants")
+      .select("profile_views")
+      .eq("id", accountantId)
+      .maybeSingle();
+
+    if (fetchError) {
+      console.error("❌ Error fetching current profile_views:", fetchError);
+      return;
+    }
+
+    if (!accountant) {
+      console.error("❌ Accountant not found:", accountantId);
+      return;
+    }
+
+    // Increment by 1
+    const newViewCount = (accountant?.profile_views || 0) + 1;
+
+    const { error: updateError } = await supabaseAny
+      .from("accountants")
+      .update({
+        profile_views: newViewCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", accountantId);
+
+    if (updateError) {
+      console.error("❌ Error updating profile_views:", updateError);
+      return;
+    }
+
+    console.log(`✅ Profile view tracked: ${newViewCount} total views`);
+  } catch (error) {
+    console.error("❌ Error in trackAccountantProfileView:", error);
+    // Don't throw - tracking is non-critical
+  }
+}
+
+/**
+ * Get my accountant reviews (for dashboard)
+ */
+export async function getMyReviews(
+  accountantId: string
+): Promise<AccountantReview[]> {
+  console.log("📋 Fetching my reviews for accountant dashboard:", accountantId);
+
+  try {
+    // SIMPLIFIED - no employer JOIN because FK doesn't exist yet
+    const { data, error } = await supabaseAny
+      .from("accountant_reviews")
+      .select("*")
+      .eq("accountant_id", accountantId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("❌ Error fetching my reviews:", error);
+      return [];
+    }
+
+    console.log(`✅ Loaded ${data?.length || 0} reviews for dashboard`);
+    return data || [];
+  } catch (error) {
+    console.error("❌ Error in getMyReviews:", error);
+    return [];
+  }
+}
+
+/**
+ * Respond to a review (UPDATE response_text)
+ */
+export async function respondToReview(
+  reviewId: string,
+  responseText: string
+): Promise<{ success: boolean; error?: string }> {
+  console.log("💬 Responding to review:", reviewId);
+
+  try {
+    const { error } = await supabaseAny
+      .from("accountant_reviews")
+      .update({
+        response_text: responseText,
+        response_date: new Date().toISOString(),
+      })
+      .eq("id", reviewId);
+
+    if (error) {
+      console.error("❌ Error responding to review:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("✅ Review response saved");
+    return { success: true };
+  } catch (error: any) {
+    console.error("❌ Error in respondToReview:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Update accountant's rating and rating_count in database
+ * Call this after review INSERT/UPDATE/DELETE to keep stats current
+ */
+export async function updateAccountantRating(
+  accountantId: string
+): Promise<void> {
+  console.log("🔄 Updating accountant rating for ID:", accountantId);
+
+  try {
+    // Fetch all reviews for this accountant
+    const { data: reviews, error: reviewsError } = await supabaseAny
+      .from("accountant_reviews")
+      .select("rating")
+      .eq("accountant_id", accountantId)
+      .eq("status", "approved"); // Only count approved reviews
+
+    if (reviewsError) {
+      console.error(
+        "❌ Error fetching reviews for rating update:",
+        reviewsError
+      );
+      return;
+    }
+
+    // Calculate stats
+    const totalReviews = reviews?.length || 0;
+    const averageRating =
+      totalReviews > 0
+        ? reviews.reduce((sum: number, r: any) => sum + r.rating, 0) /
+          totalReviews
+        : 0;
+
+    // Update accountants table
+    const { error: updateError } = await supabaseAny
+      .from("accountants")
+      .update({
+        rating: parseFloat(averageRating.toFixed(1)),
+        rating_count: totalReviews,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", accountantId);
+
+    if (updateError) {
+      console.error("❌ Error updating accountant rating:", updateError);
+      return;
+    }
+
+    console.log("✅ Accountant rating updated:", {
+      accountantId,
+      rating: parseFloat(averageRating.toFixed(1)),
+      rating_count: totalReviews,
+    });
+  } catch (error) {
+    console.error("❌ Error in updateAccountantRating:", error);
+  }
+}
+
+/**
+ * Save or update weekly availability
+ */
+export async function saveAvailability(
+  profileId: string,
+  availability: any
+): Promise<{ success: boolean; error?: string }> {
+  console.log("💾 Saving availability for profile:", profileId);
+
+  try {
+    // Check if availability record exists
+    const { data: existing } = await supabaseAny
+      .from("availability")
+      .select("id")
+      .eq("profile_id", profileId)
+      .maybeSingle();
+
+    if (existing) {
+      // UPDATE existing record
+      const { error } = await supabaseAny
+        .from("availability")
+        .update({
+          monday: availability.monday || false,
+          tuesday: availability.tuesday || false,
+          wednesday: availability.wednesday || false,
+          thursday: availability.thursday || false,
+          friday: availability.friday || false,
+          saturday: availability.saturday || false,
+          sunday: availability.sunday || false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("profile_id", profileId);
+
+      if (error) {
+        console.error("❌ Error updating availability:", error);
+        return { success: false, error: error.message };
+      }
+
+      console.log("✅ Availability updated");
+      return { success: true };
+    } else {
+      // INSERT new record
+      const { error } = await supabaseAny.from("availability").insert({
+        profile_id: profileId,
+        monday: availability.monday || false,
+        tuesday: availability.tuesday || false,
+        wednesday: availability.wednesday || false,
+        thursday: availability.thursday || false,
+        friday: availability.friday || false,
+        saturday: availability.saturday || false,
+        sunday: availability.sunday || false,
+      });
+
+      if (error) {
+        console.error("❌ Error inserting availability:", error);
+        return { success: false, error: error.message };
+      }
+
+      console.log("✅ Availability created");
+      return { success: true };
+    }
+  } catch (error: any) {
+    console.error("❌ Error in saveAvailability:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Load weekly availability
+ */
+export async function getAvailability(profileId: string): Promise<any | null> {
+  console.log("📅 Loading availability for profile:", profileId);
+
+  try {
+    const { data, error } = await supabaseAny
+      .from("availability")
+      .select("*")
+      .eq("profile_id", profileId)
+      .maybeSingle(); // ✅ FIX: Use maybeSingle() instead of single()
+
+    if (error) {
+      console.warn("⚠️ Error loading availability:", error.message);
+      return null;
+    }
+
+    if (!data) {
+      console.log("ℹ️ No availability record found for profile:", profileId);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error in getAvailability:", error);
+    return null;
+  }
+}
+
+/**
+ * Add unavailable date
+ */
+export async function addUnavailableDate(
+  profileId: string,
+  date: string,
+  reason?: string
+): Promise<{ success: boolean; error?: string }> {
+  console.log("🚫 Adding unavailable date:", { profileId, date, reason });
+
+  try {
+    const { error } = await supabaseAny.from("unavailable_dates").insert({
+      profile_id: profileId,
+      date,
+      reason: reason || null,
+    });
+
+    if (error) {
+      console.error("❌ Error adding unavailable date:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("✅ Unavailable date added");
+    return { success: true };
+  } catch (error: any) {
+    console.error("❌ Error in addUnavailableDate:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Get unavailable dates
+ */
+export async function getUnavailableDates(profileId: string): Promise<any[]> {
+  console.log("📋 Loading unavailable dates for profile:", profileId);
+
+  try {
+    const { data, error } = await supabaseAny
+      .from("unavailable_dates")
+      .select("*")
+      .eq("profile_id", profileId)
+      .gte("date", new Date().toISOString().split("T")[0]) // Only future dates
+      .order("date", { ascending: true });
+
+    if (error) {
+      console.error("❌ Error loading unavailable dates:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error("❌ Error in getUnavailableDates:", error);
+    return [];
+  }
+}
+
+/**
+ * Remove unavailable date
+ */
+export async function removeUnavailableDate(
+  dateId: string
+): Promise<{ success: boolean; error?: string }> {
+  console.log("🗑️ Removing unavailable date:", dateId);
+
+  try {
+    const { error } = await supabaseAny
+      .from("unavailable_dates")
+      .delete()
+      .eq("id", dateId);
+
+    if (error) {
+      console.error("❌ Error removing unavailable date:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("✅ Unavailable date removed");
+    return { success: true };
+  } catch (error: any) {
+    console.error("❌ Error in removeUnavailableDate:", error);
+    return { success: false, error: error.message };
+  }
 }

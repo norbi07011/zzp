@@ -1,8 +1,8 @@
-export type UserRole = 'client' | 'worker' | 'admin';
+export type UserRole = "client" | "worker" | "admin" | "cleaning_company";
 
 export interface Subscription {
-  planId: 'worker-basic' | 'worker-plus' | 'client-basic' | 'client-pro';
-  status: 'ACTIVE' | 'INACTIVE';
+  planId: "worker-basic" | "worker-plus" | "client-basic" | "client-pro";
+  status: "ACTIVE" | "INACTIVE";
 }
 
 export interface User {
@@ -14,21 +14,21 @@ export interface User {
 }
 
 export enum Level {
-  Junior = 'Junior',
-  Regular = 'Regular',
-  Senior = 'Senior',
+  Junior = "Junior",
+  Regular = "Regular",
+  Senior = "Senior",
 }
 
 export enum Availability {
-  Available = 'Dostępny',
-  AvailableFrom = 'Dostępny od',
-  Busy = 'Zajęty',
+  Available = "Dostępny",
+  AvailableFrom = "Dostępny od",
+  Busy = "Zajęty",
 }
 
 export enum JobRateType {
-    Hourly = 'h',
-    Daily = 'dzień',
-    Fixed = 'ryczałt',
+  Hourly = "h",
+  Daily = "dzień",
+  Fixed = "ryczałt",
 }
 
 export interface Skill {
@@ -74,7 +74,7 @@ export interface Badge {
   icon: string;
   description: string;
   earnedDate: string;
-  level?: 'bronze' | 'silver' | 'gold' | 'platinum';
+  level?: "bronze" | "silver" | "gold" | "platinum";
 }
 
 export interface Testimonial {
@@ -100,7 +100,7 @@ export interface Message {
 
 export interface MessageAttachment {
   id: string;
-  type: 'image' | 'document' | 'pdf';
+  type: "image" | "document" | "pdf";
   url: string;
   filename: string;
   size: number;
@@ -122,7 +122,7 @@ export interface JobMilestone {
   description: string;
   amount: number;
   dueDate: string;
-  status: 'pending' | 'in-progress' | 'completed' | 'paid';
+  status: "pending" | "in-progress" | "completed" | "paid";
   completedDate?: string;
 }
 
@@ -138,7 +138,7 @@ export interface Invoice {
   subtotal: number;
   vat: number;
   total: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue';
+  status: "draft" | "sent" | "paid" | "overdue";
   paidDate?: string;
 }
 
@@ -151,7 +151,7 @@ export interface InvoiceItem {
 
 export interface PaymentMethod {
   id: string;
-  type: 'ideal' | 'creditcard' | 'sepa' | 'paypal';
+  type: "ideal" | "creditcard" | "sepa" | "paypal";
   lastFour?: string;
   expiryDate?: string;
   isDefault: boolean;
@@ -159,8 +159,8 @@ export interface PaymentMethod {
 
 export interface Analytics {
   userId: number;
-  period: 'week' | 'month' | 'quarter' | 'year';
-  
+  period: "week" | "month" | "quarter" | "year";
+
   // Worker Analytics
   jobsCompleted?: number;
   totalEarnings?: number;
@@ -168,14 +168,14 @@ export interface Analytics {
   profileViews?: number;
   applicationsSent?: number;
   acceptanceRate?: number;
-  
+
   // Client Analytics
   jobsPosted?: number;
   totalSpent?: number;
   workersHired?: number;
   averageJobCost?: number;
   satisfactionRate?: number;
-  
+
   // Chart Data
   earningsOverTime?: ChartDataPoint[];
   jobsByCategory?: { category: string; count: number }[];
@@ -211,11 +211,19 @@ export interface SearchFilters {
   skills?: string[];
 }
 
-export type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+export type ReviewStatus = "PENDING" | "APPROVED" | "REJECTED";
 
-export type NotificationType = 'NEW_JOB' | 'NEW_APPLICATION' | 'STATUS_CHANGE' | 'REVIEW_APPROVED' | 'REVIEW_REJECTED' | 'VERIFICATION_BOOKED' | 'COURSE_REMINDER' | 'NEW_MESSAGE' | 'PAYMENT_RECEIVED' | 'MILESTONE_COMPLETED';
-
-
+export type NotificationType =
+  | "NEW_JOB"
+  | "NEW_APPLICATION"
+  | "STATUS_CHANGE"
+  | "REVIEW_APPROVED"
+  | "REVIEW_REJECTED"
+  | "VERIFICATION_BOOKED"
+  | "COURSE_REMINDER"
+  | "NEW_MESSAGE"
+  | "PAYMENT_RECEIVED"
+  | "MILESTONE_COMPLETED";
 
 export interface Review {
   id: string;
@@ -261,7 +269,7 @@ export interface Profile {
   reviews: Review[];
   reviewCount: number;
   avgRating: number;
-  
+
   // Extended Profile Fields
   phone?: string;
   website?: string;
@@ -272,34 +280,34 @@ export interface Profile {
   responseTime?: string; // e.g. "< 2h"
   profileViews?: number;
   savedByClients?: number;
-  
+
   // Company Details (for registered businesses)
   companyName?: string;
   kvkNumber?: string;
   vatNumber?: string;
   insuranceProvider?: string;
   insuranceNumber?: string;
-  
+
   // Tools & Equipment
   ownTools?: string[];
   ownVehicle?: boolean;
   vehicleType?: string;
-  
+
   // Availability Details
   availabilityCalendar?: AvailabilitySlot[];
   preferredWorkRadius?: number; // in km
   willingToTravel?: boolean;
-  
+
   // Social Proof
   badges?: Badge[];
   featuredWork?: string[]; // Featured project IDs
   testimonials?: Testimonial[];
-  
+
   // Settings
-  profileVisibility?: 'public' | 'private' | 'clients-only';
+  profileVisibility?: "public" | "private" | "clients-only";
   allowDirectMessages?: boolean;
   emailNotifications?: boolean;
-  
+
   // Stats
   joinedDate?: string;
   lastActive?: string;
@@ -308,101 +316,117 @@ export interface Profile {
 }
 
 export interface Job {
-    id: number;
-    clientId: number;
-    title: string;
-    clientName: string;
-    logoUrl: string;
-    location: string;
-    startDate: string;
-    endDate: string;
-    rateType: JobRateType;
-    rateValue: number;
-    peopleNeeded: number;
-    requiredCerts: string[];
-    description: string;
-    isPriority: boolean;
+  id: number;
+  clientId: number;
+  title: string;
+  clientName: string;
+  logoUrl: string;
+  location: string;
+  startDate: string;
+  endDate: string;
+  rateType: JobRateType;
+  rateValue: number;
+  peopleNeeded: number;
+  requiredCerts: string[];
+  description: string;
+  isPriority: boolean;
 }
 
 export enum ApplicationStatus {
-    New = 'NEW',
-    Shortlisted = 'SHORTLISTED',
-    Accepted = 'ACCEPTED',
-    Declined = 'DECLINED'
+  New = "NEW",
+  Shortlisted = "SHORTLISTED",
+  Accepted = "ACCEPTED",
+  Declined = "DECLINED",
 }
 
 export interface Application {
-    id: number;
-    jobId: number;
-    workerId: number;
-    date: string;
-    status: ApplicationStatus;
+  id: number;
+  jobId: number;
+  workerId: number;
+  date: string;
+  status: ApplicationStatus;
 }
 
 export interface VerificationSlot {
-    id: string;
-    dateTime: string;
-    isBooked: boolean;
+  id: string;
+  dateTime: string;
+  isBooked: boolean;
 }
 
 export interface VerificationBooking {
-    id: string;
-    workerId: number;
-    slotId: string;
-    status: 'BOOKED' | 'COMPLETED' | 'CANCELED';
-    assessment?: {
-        finalLevel: Level;
-        verifiedUntil: string;
-        reportUrl: string;
-        assessedSkills: Skill[];
-    };
+  id: string;
+  workerId: number;
+  slotId: string;
+  status: "BOOKED" | "COMPLETED" | "CANCELED";
+  assessment?: {
+    finalLevel: Level;
+    verifiedUntil: string;
+    reportUrl: string;
+    assessedSkills: Skill[];
+  };
 }
 
-export type CourseType = 'VCA_BASIS' | 'VCA_VOL' | 'BHV' | 'GPI';
+export type CourseType = "VCA_BASIS" | "VCA_VOL" | "BHV" | "GPI";
 
 export interface Course {
-    id: string;
-    title: string;
-    type: CourseType;
-    price: number;
-    dates: string[];
-    seatLimit: number;
+  id: string;
+  title: string;
+  type: CourseType;
+  price: number;
+  dates: string[];
+  seatLimit: number;
 }
 
 export interface Enrollment {
-    id: string;
-    courseId: string;
-    workerId: number;
-    status: 'ENROLLED' | 'PASSED' | 'FAILED';
+  id: string;
+  courseId: string;
+  workerId: number;
+  status: "ENROLLED" | "PASSED" | "FAILED";
 }
 
 export interface Plan {
-    id: 'worker-basic' | 'worker-plus' | 'client-basic' | 'client-pro';
-    name: string;
-    role: UserRole;
-    price: number;
-    perks: string[];
+  id: "worker-basic" | "worker-plus" | "client-basic" | "client-pro";
+  name: string;
+  role: UserRole;
+  price: number;
+  perks: string[];
 }
 
 export interface Notification {
-    id: string;
-    userId: number; // The user who receives the notification
-    type: NotificationType;
-    message: string;
-    isRead: boolean;
-    timestamp: string;
-    link?: string;
+  id: string;
+  userId: number; // The user who receives the notification
+  type: NotificationType;
+  message: string;
+  isRead: boolean;
+  timestamp: string;
+  link?: string;
 }
 
 // ==========================================
 // SYSTEM KOMUNIKACJI BUDOWLANEJ
 // ==========================================
 
-export type ProjectRole = 'worker' | 'supervisor' | 'employer' | 'accountant';
-export type MessageType = 'text' | 'image' | 'document' | 'location' | 'progress_update' | 'safety_alert';
-export type ChatGroupType = 'project_general' | 'team' | 'supervisor' | 'safety' | 'progress';
-export type SafetyLevel = 'low' | 'medium' | 'high' | 'critical';
-export type ProgressStatus = 'on_track' | 'delayed' | 'ahead' | 'completed' | 'blocked';
+export type ProjectRole = "worker" | "supervisor" | "employer" | "accountant";
+export type MessageType =
+  | "text"
+  | "image"
+  | "document"
+  | "location"
+  | "progress_update"
+  | "safety_alert";
+export type ChatGroupType =
+  | "project_general"
+  | "team"
+  | "supervisor"
+  | "safety"
+  | "progress";
+export type SafetyLevel = "low" | "medium" | "high" | "critical";
+export type ProgressStatus =
+  | "on_track"
+  | "delayed"
+  | "ahead"
+  | "completed"
+  | "blocked";
 
 export interface BuildingChatMessage {
   id: string;
@@ -465,7 +489,12 @@ export interface BuildingNotification {
   id: string;
   user_id: string;
   project_id: string;
-  notification_type: 'message' | 'progress_update' | 'safety_alert' | 'task_assignment' | 'deadline_reminder';
+  notification_type:
+    | "message"
+    | "progress_update"
+    | "safety_alert"
+    | "task_assignment"
+    | "deadline_reminder";
   title: string;
   content: string;
   metadata?: {
@@ -526,7 +555,7 @@ export interface SafetyAlert {
   };
   photos: string[];
   actions_taken?: string;
-  status: 'open' | 'investigating' | 'resolved' | 'false_alarm';
+  status: "open" | "investigating" | "resolved" | "false_alarm";
   assigned_to?: string;
   resolution_notes?: string;
   created_at: string;
@@ -537,43 +566,43 @@ export interface SafetyAlert {
 // Helper functions for communication system
 export const getMessageTypeLabel = (type: MessageType): string => {
   const labels: Record<MessageType, string> = {
-    text: 'Wiadomość',
-    image: 'Zdjęcie',
-    document: 'Dokument',
-    location: 'Lokalizacja',
-    progress_update: 'Raport postępu',
-    safety_alert: 'Alert bezpieczeństwa'
+    text: "Wiadomość",
+    image: "Zdjęcie",
+    document: "Dokument",
+    location: "Lokalizacja",
+    progress_update: "Raport postępu",
+    safety_alert: "Alert bezpieczeństwa",
   };
   return labels[type];
 };
 
 export const getSafetyLevelColor = (level: SafetyLevel): string => {
   const colors: Record<SafetyLevel, string> = {
-    low: 'text-green-600 bg-green-50',
-    medium: 'text-yellow-600 bg-yellow-50',
-    high: 'text-orange-600 bg-orange-50',
-    critical: 'text-red-600 bg-red-50'
+    low: "text-green-600 bg-green-50",
+    medium: "text-yellow-600 bg-yellow-50",
+    high: "text-orange-600 bg-orange-50",
+    critical: "text-red-600 bg-red-50",
   };
   return colors[level];
 };
 
 export const getProgressStatusColor = (status: ProgressStatus): string => {
   const colors: Record<ProgressStatus, string> = {
-    on_track: 'text-green-600 bg-green-50',
-    ahead: 'text-blue-600 bg-blue-50',
-    delayed: 'text-orange-600 bg-orange-50',
-    blocked: 'text-red-600 bg-red-50',
-    completed: 'text-gray-600 bg-gray-50'
+    on_track: "text-green-600 bg-green-50",
+    ahead: "text-blue-600 bg-blue-50",
+    delayed: "text-orange-600 bg-orange-50",
+    blocked: "text-red-600 bg-red-50",
+    completed: "text-gray-600 bg-gray-50",
   };
   return colors[status];
 };
 
 export const formatProjectRole = (role: ProjectRole): string => {
   const roleLabels: Record<ProjectRole, string> = {
-    worker: 'Pracownik',
-    supervisor: 'Kierownik',
-    employer: 'Pracodawca',
-    accountant: 'Księgowy'
+    worker: "Pracownik",
+    supervisor: "Kierownik",
+    employer: "Pracodawca",
+    accountant: "Księgowy",
   };
   return roleLabels[role];
 };
@@ -582,14 +611,21 @@ export const formatProjectRole = (role: ProjectRole): string => {
 // FIRMY SPRZĄTAJĄCE PO BUDOWACH
 // ==========================================
 
-export type CleaningSpecialization = 
-  | 'cleaning_after_construction' // sprzątanie po budowach
-  | 'deep_cleaning' // gruntowne sprzątanie
-  | 'office_cleaning' // sprzątanie biur
-  | 'window_cleaning' // mycie okien
-  | 'maintenance_cleaning'; // utrzymanie czystości
+export type CleaningSpecialization =
+  | "cleaning_after_construction" // sprzątanie po budowach
+  | "deep_cleaning" // gruntowne sprzątanie
+  | "office_cleaning" // sprzątanie biur
+  | "window_cleaning" // mycie okien
+  | "maintenance_cleaning"; // utrzymanie czystości
 
-export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export type DayOfWeek =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
 
 export interface WeeklyAvailability {
   monday: boolean;
@@ -601,60 +637,77 @@ export interface WeeklyAvailability {
   sunday: boolean;
 }
 
+// Blocked/Unavailable dates
+export type UnavailableDateType =
+  | "vacation"
+  | "holiday"
+  | "fully_booked"
+  | "other";
+
+export interface UnavailableDate {
+  date: string; // YYYY-MM-DD format
+  reason: string;
+  type: UnavailableDateType;
+}
+
 export interface CleaningCompany {
   id: string;
-  
+
   // Powiązanie z profiles
   user_id: string;
   profile_id?: string;
-  
+
   // Podstawowe dane firmy
   company_name: string;
   owner_name: string;
   phone?: string;
   email?: string;
   kvk_number?: string;
-  
+
   // Lokalizacja
   location_city?: string;
   location_province?: string;
   service_radius_km: number; // promień działania w km
-  
+
   // Specjalizacja
   specialization: CleaningSpecialization[];
   additional_services: string[]; // np: 'own_equipment', 'eco_products', 'same_day_service', 'weekend_available'
-  
+
   // KALENDARZ DOSTĘPNOŚCI - kluczowa funkcjonalność!
   availability: WeeklyAvailability;
   preferred_days_per_week: number; // zwykle 2
-  
+  unavailable_dates: UnavailableDate[]; // zablokowane daty (urlop, święta, zajęte)
+
   // Stawka
   hourly_rate_min?: number;
   hourly_rate_max?: number;
   rate_negotiable: boolean;
-  
+
   // Doświadczenie
   years_experience: number;
   team_size: number; // ile osób w ekipie
-  
+
   // Opis
   bio?: string;
-  
+
   // Portfolio
   portfolio_images: string[]; // URLe do zdjęć prac
-  
+  avatar_url?: string; // Zdjęcie profilowe firmy (logo/avatar) - alias dla logo_url
+  logo_url?: string; // Logo firmy (kompatybilność z employers)
+  cover_image_url?: string; // Zdjęcie okładki profilu (background)
+
   // Oceny
   average_rating: number;
   total_reviews: number;
-  
+
   // Subskrypcja
-  subscription_tier: 'basic' | 'pro' | 'premium';
-  subscription_status: 'active' | 'inactive' | 'suspended';
-  
+  subscription_tier: "basic" | "pro" | "premium";
+  subscription_status: "active" | "inactive" | "suspended";
+
   // Widoczność
-  profile_visibility: 'public' | 'private' | 'draft';
+  profile_visibility: "public" | "private" | "draft";
   accepting_new_clients: boolean;
-  
+
   // Timestamps
   last_active: string;
   created_at: string;
@@ -665,47 +718,87 @@ export interface CleaningCompany {
 
 export const getDayLabel = (day: DayOfWeek): string => {
   const labels: Record<DayOfWeek, string> = {
-    monday: 'Poniedziałek',
-    tuesday: 'Wtorek',
-    wednesday: 'Środa',
-    thursday: 'Czwartek',
-    friday: 'Piątek',
-    saturday: 'Sobota',
-    sunday: 'Niedziela'
+    monday: "Poniedziałek",
+    tuesday: "Wtorek",
+    wednesday: "Środa",
+    thursday: "Czwartek",
+    friday: "Piątek",
+    saturday: "Sobota",
+    sunday: "Niedziela",
   };
   return labels[day];
 };
 
 export const getDayShortLabel = (day: DayOfWeek): string => {
   const labels: Record<DayOfWeek, string> = {
-    monday: 'Pn',
-    tuesday: 'Wt',
-    wednesday: 'Śr',
-    thursday: 'Cz',
-    friday: 'Pt',
-    saturday: 'So',
-    sunday: 'Nd'
+    monday: "Pn",
+    tuesday: "Wt",
+    wednesday: "Śr",
+    thursday: "Cz",
+    friday: "Pt",
+    saturday: "So",
+    sunday: "Nd",
   };
   return labels[day];
 };
 
-export const getCleaningSpecializationLabel = (spec: CleaningSpecialization): string => {
+export const getCleaningSpecializationLabel = (
+  spec: CleaningSpecialization
+): string => {
   const labels: Record<CleaningSpecialization, string> = {
-    cleaning_after_construction: 'Sprzątanie po budowach',
-    deep_cleaning: 'Gruntowne sprzątanie',
-    office_cleaning: 'Sprzątanie biur',
-    window_cleaning: 'Mycie okien',
-    maintenance_cleaning: 'Utrzymanie czystości'
+    cleaning_after_construction: "Sprzątanie po budowach",
+    deep_cleaning: "Gruntowne sprzątanie",
+    office_cleaning: "Sprzątanie biur",
+    window_cleaning: "Mycie okien",
+    maintenance_cleaning: "Utrzymanie czystości",
   };
   return labels[spec];
 };
 
-export const countAvailableDays = (availability: WeeklyAvailability): number => {
+export const countAvailableDays = (
+  availability: WeeklyAvailability
+): number => {
   return Object.values(availability).filter(Boolean).length;
 };
 
-export const getAvailableDaysList = (availability: WeeklyAvailability): DayOfWeek[] => {
+export const getAvailableDaysList = (
+  availability: WeeklyAvailability
+): DayOfWeek[] => {
   return (Object.keys(availability) as DayOfWeek[]).filter(
-    day => availability[day]
+    (day) => availability[day]
   );
 };
+
+// ============================================
+// CLEANING REVIEWS
+// ============================================
+
+export interface CleaningReview {
+  id: string;
+  cleaning_company_id: string;
+  employer_id: string;
+
+  // Ocena i treść
+  rating: number; // 1-5
+  review_text?: string;
+
+  // Szczegóły pracy
+  work_date?: string;
+  work_duration_hours?: number;
+  work_type?: string; // np. 'after_construction', 'deep_cleaning'
+
+  // Odpowiedź od firmy
+  response_text?: string;
+  response_date?: string;
+
+  // Timestamps
+  created_at: string;
+  updated_at: string;
+
+  // Relacje (opcjonalne, JOIN z employers)
+  employer?: {
+    id: string;
+    company_name: string;
+    profile_id: string;
+  };
+}

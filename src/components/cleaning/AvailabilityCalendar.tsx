@@ -1,5 +1,9 @@
-import React from 'react';
-import { WeeklyAvailability, DayOfWeek, getDayShortLabel } from '../../../types';
+import React from "react";
+import {
+  WeeklyAvailability,
+  DayOfWeek,
+  getDayShortLabel,
+} from "../../../types";
 
 interface AvailabilityCalendarProps {
   availability: WeeklyAvailability;
@@ -8,20 +12,28 @@ interface AvailabilityCalendarProps {
   compact?: boolean;
 }
 
-const DAYS: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+const DAYS: DayOfWeek[] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+];
 
 export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
   availability,
   onChange,
   editable = false,
-  compact = false
+  compact = false,
 }) => {
   const handleToggleDay = (day: DayOfWeek) => {
     if (!editable || !onChange) return;
-    
+
     onChange({
       ...availability,
-      [day]: !availability[day]
+      [day]: !availability[day],
     });
   };
 
@@ -35,13 +47,13 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
           Dostępność w tygodniu
         </h3>
         <span className="text-xs text-gray-500">
-          {availableCount} {availableCount === 1 ? 'dzień' : 'dni'}
+          {availableCount} {availableCount === 1 ? "dzień" : "dni"}
         </span>
       </div>
 
       {/* Calendar Grid */}
-      <div className={compact ? 'flex gap-2' : 'grid grid-cols-7 gap-2'}>
-        {DAYS.map(day => {
+      <div className={compact ? "flex gap-2" : "grid grid-cols-7 gap-2"}>
+        {DAYS.map((day) => {
           const isAvailable = availability[day];
           const dayLabel = getDayShortLabel(day);
 
@@ -52,30 +64,29 @@ export const AvailabilityCalendar: React.FC<AvailabilityCalendarProps> = ({
               onClick={() => handleToggleDay(day)}
               disabled={!editable}
               className={`
-                ${compact ? 'w-10 h-10' : 'aspect-square'}
+                ${compact ? "w-10 h-10" : "aspect-square"}
                 flex flex-col items-center justify-center
                 rounded-lg border-2 transition-all
-                ${isAvailable 
-                  ? 'bg-blue-500 border-blue-600 text-white' 
-                  : 'bg-white border-gray-200 text-gray-400'
+                ${
+                  isAvailable
+                    ? "bg-blue-500 border-blue-600 text-white"
+                    : "bg-white border-gray-200 text-gray-400"
                 }
-                ${editable 
-                  ? 'hover:scale-105 cursor-pointer' 
-                  : 'cursor-default'
+                ${
+                  editable ? "hover:scale-105 cursor-pointer" : "cursor-default"
                 }
-                ${!editable && isAvailable 
-                  ? 'shadow-sm' 
-                  : ''
-                }
+                ${!editable && isAvailable ? "shadow-sm" : ""}
               `}
             >
-              <span className={compact ? 'text-xs font-medium' : 'text-sm font-medium'}>
+              <span
+                className={
+                  compact ? "text-xs font-medium" : "text-sm font-medium"
+                }
+              >
                 {dayLabel}
               </span>
               {!compact && (
-                <span className="text-xs mt-1">
-                  {isAvailable ? '✓' : '—'}
-                </span>
+                <span className="text-xs mt-1">{isAvailable ? "✓" : "—"}</span>
               )}
             </button>
           );

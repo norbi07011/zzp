@@ -32,7 +32,7 @@ export async function getDashboardMetrics() {
     supabase.from('users').select('id, last_seen_at').then(r => r.data || []),
     supabase.from('payments').select('amount, status').eq('status', 'completed').then(r => r.data || []),
     supabase.from('appointments').select('id, status').then(r => r.data || []),
-    supabase.from('v_certificates').select('id, expiry_date').then(r => r.data || [])
+    supabase.from('certificates').select('id, expiry_date').then(r => r.data || [])
   ]);
 
   const now = new Date();

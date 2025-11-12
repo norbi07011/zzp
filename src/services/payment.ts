@@ -2,85 +2,60 @@
 /**
  * Payment Service
  * Managing subscriptions, transactions, invoices
+ *
+ * TIER 1 FIX: Integrated with invoice_invoices and workers tables
+ * Database: invoice_invoices (faktury €100-€666), workers (subscriptions €13-€25/month)
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 
 export interface Subscription {
   id: string;
-  company_id: string;
-  plan_id: string;
+  worker_id: string;
+  worker_name: string;
+  monthly_fee: number;
+  subscription_tier: "basic" | "premium";
+  subscription_status: "active" | "cancelled" | "expired" | "trial";
+  subscription_start_date: string;
+  subscription_end_date?: string;
+  last_payment_date?: string;
   stripe_subscription_id?: string;
-  stripe_customer_id: string;
-  status: 'active' | 'past_due' | 'canceled' | 'incomplete' | 'trialing';
-  billing_cycle: 'monthly' | 'yearly';
-  current_period_start: string;
-  current_period_end: string;
-  cancel_at_period_end: boolean;
-  trial_end?: string;
-  canceled_at?: string;
-  created_at: string;
-  updated_at: string;
-  company?: {
-    id: string;
-    name: string;
-    kvk_number?: string;
-  };
+  stripe_customer_id?: string;
 }
 
 export interface Transaction {
   id: string;
-  job_id: string;
-  company_id: string;
-  worker_id: string;
-  amount_excl_btw: number;
-  btw_amount: number;
-  amount_incl_btw: number;
-  platform_fee_percentage: number;
-  platform_fee_amount: number;
-  worker_receives: number;
-  stripe_payment_intent_id?: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
-  payment_method?: string;
-  invoice_id?: string;
-  metadata?: any;
-  created_at: string;
-  completed_at?: string;
-  refunded_at?: string;
-  job?: {
-    title: string;
-  };
-  company?: {
-    name: string;
-  };
-  worker?: {
-    first_name: string;
-    last_name: string;
-  };
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  total_gross: number; // €100-€666
+  total_net: number;
+  total_vat: number;
+  status: "unpaid" | "partial" | "paid" | "cancelled";
+  payment_date?: string;
+  client_name?: string;
+  user_name?: string;
 }
 
 export interface Invoice {
   id: string;
   invoice_number: string;
-  company_id: string;
-  company_name: string;
-  company_kvk: string;
-  company_btw?: string;
-  company_address: string;
-  worker_id?: string;
-  worker_name?: string;
-  worker_kvk?: string;
-  worker_btw?: string;
   invoice_date: string;
   due_date: string;
+  client_id: string;
+  client_snapshot: any;
+  language: "pl" | "nl" | "en";
+  status: "unpaid" | "partial" | "paid" | "cancelled";
+  total_net: number;
+  total_vat: number;
+  total_gross: number;
+  paid_amount: number;
   payment_date?: string;
-  items: InvoiceItem[];
-  subtotal_excl_btw: number;
-  btw_amount: number;
-  total_incl_btw: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'canceled';
-  payment_terms_days: number;
+  payment_reference?: string;
+  is_reverse_charge: boolean;
   notes?: string;
+  footer_text?: string;
+  template_name?: string;
   created_at: string;
   updated_at: string;
 }
@@ -102,58 +77,75 @@ export interface PaymentFilters {
   min_amount?: number;
   max_amount?: number;
 }
-
 /**
- * Get all subscriptions with optional filters
+ * Get all worker subscriptions
+ * Database: workers table (monthly_fee €13-€25)
  */
-export async function getSubscriptions(filters?: { status?: string; company_id?: string }) {
+export async function getSubscriptions(
+  filters?: PaymentFilters
+): Promise<Subscription[]> {
   let query = supabase
-    .from('subscriptions')
-    .select(`
-      *,
-      company:companies!subscriptions_company_id_fkey(id, name, kvk_number)
-    `)
-    .order('created_at', { ascending: false });
+    .from("workers")
+    .select(
+      `
+      id,
+      profile_id,
+      monthly_fee,
+      subscription_tier,
+      subscription_status,
+      subscription_start_date,
+      subscription_end_date,
+      last_payment_date,
+      stripe_subscription_id,
+      stripe_customer_id,
+      profiles!workers_profile_id_fkey(full_name)
+    `
+    )
+    .order("subscription_start_date", { ascending: false });
 
-  if (filters?.status) {
-    query = query.eq('status', filters.status);
-  }
-
-  if (filters?.company_id) {
-    query = query.eq('company_id', filters.company_id);
+  if (filters?.status && filters.status.length > 0) {
+    query = query.in("subscription_status", filters.status);
   }
 
   const { data, error } = await query;
 
-  if (error) throw error;
-  return data as Subscription[];
+  if (error) {
+    console.error("❌ Error loading subscriptions:", error);
+    throw error;
+  }
+
+  const subscriptions: Subscription[] = (data || []).map((worker) => ({
+    id: worker.id,
+    worker_id: worker.profile_id,
+    worker_name: worker.profiles?.full_name || "Unknown",
+    monthly_fee: parseFloat(worker.monthly_fee || "13"),
+    subscription_tier: worker.subscription_tier,
+    subscription_status: worker.subscription_status,
+    subscription_start_date: worker.subscription_start_date,
+    subscription_end_date: worker.subscription_end_date,
+    last_payment_date: worker.last_payment_date,
+    stripe_subscription_id: worker.stripe_subscription_id,
+    stripe_customer_id: worker.stripe_customer_id,
+  }));
+
+  console.log("💳 SUBSCRIPTIONS DEBUG:", {
+    count: subscriptions.length,
+    subscriptions,
+  });
+  return subscriptions;
 }
 
 /**
- * Get subscription by ID
+ * Update worker subscription status
  */
-export async function getSubscriptionById(id: string) {
+export async function updateSubscriptionStatus(id: string, status: string) {
   const { data, error } = await supabase
-    .from('subscriptions')
-    .select(`
-      *,
-      company:companies!subscriptions_company_id_fkey(id, name, kvk_number, email)
-    `)
-    .eq('id', id)
-    .single();
-
-  if (error) throw error;
-  return data as Subscription;
-}
-
-/**
- * Update subscription status
- */
-export async function updateSubscriptionStatus(id: string, status: Subscription['status']) {
-  const { data, error } = await supabase
-    .from('subscriptions')
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id)
+    .from("workers")
+    .update({
+      subscription_status: status,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
     .select()
     .single();
 
@@ -162,23 +154,25 @@ export async function updateSubscriptionStatus(id: string, status: Subscription[
 }
 
 /**
- * Cancel subscription
+ * Cancel worker subscription
  */
-export async function cancelSubscription(id: string, immediately: boolean = false) {
+export async function cancelSubscription(
+  id: string,
+  immediately: boolean = false
+) {
   const updateData: any = {
-    cancel_at_period_end: !immediately,
-    updated_at: new Date().toISOString()
+    subscription_status: immediately ? "cancelled" : "active",
+    updated_at: new Date().toISOString(),
   };
 
   if (immediately) {
-    updateData.status = 'canceled';
-    updateData.canceled_at = new Date().toISOString();
+    updateData.subscription_end_date = new Date().toISOString();
   }
 
   const { data, error } = await supabase
-    .from('subscriptions')
+    .from("workers")
     .update(updateData)
-    .eq('id', id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -187,92 +181,138 @@ export async function cancelSubscription(id: string, immediately: boolean = fals
 }
 
 /**
- * Get all transactions with filters
+ * Get all transactions (invoices)
+ * Database: invoice_invoices table (€100-€666 transactions)
  */
-export async function getTransactions(filters?: PaymentFilters) {
+export async function getTransactions(
+  filters?: PaymentFilters
+): Promise<Transaction[]> {
   let query = supabase
-    .from('transactions')
-    .select(`
-      *,
-      job:jobs!transactions_job_id_fkey(title),
-      company:companies!transactions_company_id_fkey(name),
-      worker:workers!transactions_worker_id_fkey(first_name, last_name)
-    `)
-    .order('created_at', { ascending: false });
+    .from("invoice_invoices")
+    .select(
+      `
+      id,
+      invoice_number,
+      invoice_date,
+      due_date,
+      total_gross,
+      total_net,
+      total_vat,
+      status,
+      payment_date,
+      client_id,
+      user_id,
+      client_snapshot,
+      profiles!invoice_invoices_user_id_fkey(full_name)
+    `
+    )
+    .order("invoice_date", { ascending: false });
 
   if (filters?.status && filters.status.length > 0) {
-    query = query.in('status', filters.status);
+    query = query.in("status", filters.status);
   }
 
   if (filters?.date_from) {
-    query = query.gte('created_at', filters.date_from);
+    query = query.gte("invoice_date", filters.date_from);
   }
 
   if (filters?.date_to) {
-    query = query.lte('created_at', filters.date_to);
-  }
-
-  if (filters?.company_id) {
-    query = query.eq('company_id', filters.company_id);
-  }
-
-  if (filters?.worker_id) {
-    query = query.eq('worker_id', filters.worker_id);
-  }
-
-  if (filters?.min_amount) {
-    query = query.gte('amount_incl_btw', filters.min_amount * 100);
-  }
-
-  if (filters?.max_amount) {
-    query = query.lte('amount_incl_btw', filters.max_amount * 100);
+    query = query.lte("invoice_date", filters.date_to);
   }
 
   const { data, error } = await query;
 
-  if (error) throw error;
-  return data as Transaction[];
+  if (error) {
+    console.error("❌ Error loading transactions:", error);
+    throw error;
+  }
+
+  const transactions: Transaction[] = (data || []).map((invoice) => ({
+    id: invoice.id,
+    invoice_number: invoice.invoice_number,
+    invoice_date: invoice.invoice_date,
+    due_date: invoice.due_date,
+    total_gross: parseFloat(invoice.total_gross),
+    total_net: parseFloat(invoice.total_net),
+    total_vat: parseFloat(invoice.total_vat),
+    status: invoice.status,
+    payment_date: invoice.payment_date,
+    client_name: invoice.client_snapshot?.name || "Unknown",
+    user_name: invoice.profiles?.full_name || "Unknown",
+  }));
+
+  console.log("💸 TRANSACTIONS DEBUG:", {
+    count: transactions.length,
+    totalAmount: transactions
+      .reduce((sum, t) => sum + t.total_gross, 0)
+      .toFixed(2),
+  });
+  return transactions;
 }
 
 /**
- * Get transaction by ID
+ * Get transaction by ID (invoice details)
  */
-export async function getTransactionById(id: string) {
+export async function getTransactionById(
+  id: string
+): Promise<Transaction | null> {
   const { data, error } = await supabase
-    .from('transactions')
-    .select(`
-      *,
-      job:jobs!transactions_job_id_fkey(id, title, description),
-      company:companies!transactions_company_id_fkey(id, name, email),
-      worker:workers!transactions_worker_id_fkey(id, first_name, last_name, email)
-    `)
-    .eq('id', id)
+    .from("invoice_invoices")
+    .select(
+      `
+      id,
+      invoice_number,
+      invoice_date,
+      due_date,
+      total_gross,
+      total_net,
+      total_vat,
+      status,
+      payment_date,
+      client_snapshot,
+      profiles!invoice_invoices_user_id_fkey(full_name)
+    `
+    )
+    .eq("id", id)
     .single();
 
-  if (error) throw error;
-  return data as Transaction;
+  if (error) {
+    console.error("❌ Error loading transaction:", error);
+    return null;
+  }
+
+  return {
+    id: data.id,
+    invoice_number: data.invoice_number,
+    invoice_date: data.invoice_date,
+    due_date: data.due_date,
+    total_gross: parseFloat(data.total_gross),
+    total_net: parseFloat(data.total_net),
+    total_vat: parseFloat(data.total_vat),
+    status: data.status,
+    payment_date: data.payment_date,
+    client_name: data.client_snapshot?.name || "Unknown",
+    user_name: data.profiles?.full_name || "Unknown",
+  };
 }
 
 /**
- * Update transaction status
+ * Update transaction (invoice) status
  */
-export async function updateTransactionStatus(id: string, status: Transaction['status']) {
+export async function updateTransactionStatus(id: string, status: string) {
   const updateData: any = {
-    status
+    status,
+    updated_at: new Date().toISOString(),
   };
 
-  if (status === 'completed') {
-    updateData.completed_at = new Date().toISOString();
-  }
-
-  if (status === 'refunded') {
-    updateData.refunded_at = new Date().toISOString();
+  if (status === "paid") {
+    updateData.payment_date = new Date().toISOString();
   }
 
   const { data, error } = await supabase
-    .from('transactions')
+    .from("invoice_invoices")
     .update(updateData)
-    .eq('id', id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -281,74 +321,100 @@ export async function updateTransactionStatus(id: string, status: Transaction['s
 }
 
 /**
- * Get payment statistics
+ * Get payment statistics from invoices and subscriptions
  */
-export async function getPaymentStats(period: 'today' | 'week' | 'month' | 'year' = 'month') {
+export async function getPaymentStats(
+  period: "today" | "week" | "month" | "year" = "month"
+) {
   const now = new Date();
   let startDate: Date;
 
   switch (period) {
-    case 'today':
+    case "today":
       startDate = new Date(now.setHours(0, 0, 0, 0));
       break;
-    case 'week':
+    case "week":
       startDate = new Date(now.setDate(now.getDate() - 7));
       break;
-    case 'month':
+    case "month":
       startDate = new Date(now.setMonth(now.getMonth() - 1));
       break;
-    case 'year':
+    case "year":
       startDate = new Date(now.setFullYear(now.getFullYear() - 1));
       break;
   }
 
-  const { data, error } = await supabase
-    .from('transactions')
-    .select('amount_incl_btw, status, created_at')
-    .gte('created_at', startDate.toISOString());
+  // Get invoice stats (€100-€666 transactions)
+  const { data: invoices, error: invoiceError } = await supabase
+    .from("invoice_invoices")
+    .select("total_gross, status, invoice_date")
+    .gte("invoice_date", startDate.toISOString());
 
-  if (error) throw error;
+  if (invoiceError) {
+    console.error("❌ Error loading invoice stats:", invoiceError);
+  }
+
+  // Get subscription stats (€13-€25 monthly)
+  const { data: subscriptions, error: subError } = await supabase
+    .from("workers")
+    .select("monthly_fee, subscription_status")
+    .eq("subscription_status", "active");
+
+  if (subError) {
+    console.error("❌ Error loading subscription stats:", subError);
+  }
 
   const stats = {
     total_revenue: 0,
-    completed_transactions: 0,
-    pending_transactions: 0,
-    failed_transactions: 0,
-    refunded_transactions: 0,
-    total_transactions: data?.length || 0
+    paid_invoices: 0,
+    unpaid_invoices: 0,
+    cancelled_invoices: 0,
+    total_invoices: invoices?.length || 0,
+    active_subscriptions: subscriptions?.length || 0,
+    monthly_recurring_revenue: 0,
+    total_transactions: (invoices?.length || 0) + (subscriptions?.length || 0),
   };
 
-  data?.forEach((transaction: any) => {
-    if (transaction.status === 'completed') {
-      stats.total_revenue += transaction.amount_incl_btw;
-      stats.completed_transactions++;
-    } else if (transaction.status === 'pending') {
-      stats.pending_transactions++;
-    } else if (transaction.status === 'failed') {
-      stats.failed_transactions++;
-    } else if (transaction.status === 'refunded') {
-      stats.refunded_transactions++;
+  // Calculate invoice stats
+  invoices?.forEach((invoice: any) => {
+    const amount = parseFloat(invoice.total_gross);
+    if (invoice.status === "paid") {
+      stats.total_revenue += amount;
+      stats.paid_invoices++;
+    } else if (invoice.status === "unpaid" || invoice.status === "partial") {
+      stats.unpaid_invoices++;
+    } else if (invoice.status === "cancelled") {
+      stats.cancelled_invoices++;
     }
   });
 
+  // Calculate MRR from active subscriptions
+  subscriptions?.forEach((sub: any) => {
+    stats.monthly_recurring_revenue += parseFloat(sub.monthly_fee || "13");
+  });
+
+  console.log("📊 PAYMENT STATS DEBUG:", stats);
   return stats;
 }
 
 /**
  * Get all invoices
  */
-export async function getInvoices(filters?: { status?: string; company_id?: string }) {
+export async function getInvoices(filters?: {
+  status?: string;
+  company_id?: string;
+}) {
   let query = supabase
-    .from('invoices')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .from("invoices")
+    .select("*")
+    .order("created_at", { ascending: false });
 
   if (filters?.status) {
-    query = query.eq('status', filters.status);
+    query = query.eq("status", filters.status);
   }
 
   if (filters?.company_id) {
-    query = query.eq('company_id', filters.company_id);
+    query = query.eq("company_id", filters.company_id);
   }
 
   const { data, error } = await query;
@@ -362,9 +428,9 @@ export async function getInvoices(filters?: { status?: string; company_id?: stri
  */
 export async function getInvoiceById(id: string) {
   const { data, error } = await supabase
-    .from('invoices')
-    .select('*')
-    .eq('id', id)
+    .from("invoices")
+    .select("*")
+    .eq("id", id)
     .single();
 
   if (error) throw error;
@@ -374,20 +440,23 @@ export async function getInvoiceById(id: string) {
 /**
  * Update invoice status
  */
-export async function updateInvoiceStatus(id: string, status: Invoice['status']) {
+export async function updateInvoiceStatus(
+  id: string,
+  status: Invoice["status"]
+) {
   const updateData: any = {
     status,
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
   };
 
-  if (status === 'paid') {
+  if (status === "paid") {
     updateData.payment_date = new Date().toISOString();
   }
 
   const { data, error } = await supabase
-    .from('invoices')
+    .from("invoices")
     .update(updateData)
-    .eq('id', id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -396,10 +465,13 @@ export async function updateInvoiceStatus(id: string, status: Invoice['status'])
 }
 
 /**
- * Format amount (cents to euros)
+ * Format amount as currency (€ 13,00)
  */
-export function formatAmount(cents: number): string {
-  return `€${(cents / 100).toFixed(2)}`;
+export function formatAmount(amount: number, currency: string = "EUR"): string {
+  return new Intl.NumberFormat("nl-NL", {
+    style: "currency",
+    currency: currency,
+  }).format(amount);
 }
 
 /**

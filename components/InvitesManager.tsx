@@ -1,14 +1,16 @@
-import React from 'react';
-import { useInvites, type ProjectInvite } from '../hooks/useInvites';
-import { useAuth } from '../contexts/AuthContext';
-import { InviteMemberModal } from './InviteMemberModal';
-import Mail from 'lucide-react/dist/esm/icons/mail';
-import Clock from 'lucide-react/dist/esm/icons/clock';
-import Check from 'lucide-react/dist/esm/icons/check';
-import X from 'lucide-react/dist/esm/icons/x';
-import RefreshCw from 'lucide-react/dist/esm/icons/refresh-cw';
-import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
-import Send from 'lucide-react/dist/esm/icons/send';
+import React from "react";
+import { useInvites, type ProjectInvite } from "../hooks/useInvites";
+import { useAuth } from "../contexts/AuthContext";
+import { InviteMemberModal } from "./InviteMemberModal";
+import Mail from "lucide-react/dist/esm/icons/mail";
+import Clock from "lucide-react/dist/esm/icons/clock";
+import Check from "lucide-react/dist/esm/icons/check";
+import X from "lucide-react/dist/esm/icons/x";
+import RefreshCw from "lucide-react/dist/esm/icons/refresh-cw";
+import Trash2 from "lucide-react/dist/esm/icons/trash-2";
+import Send from "lucide-react/dist/esm/icons/send";
+import Building2 from "lucide-react/dist/esm/icons/building-2";
+import Users from "lucide-react/dist/esm/icons/users";
 
 interface InvitesManagerProps {
   projectId?: string;
@@ -16,10 +18,10 @@ interface InvitesManagerProps {
   showInviteButton?: boolean;
 }
 
-export function InvitesManager({ 
-  projectId, 
+export function InvitesManager({
+  projectId,
   projectName,
-  showInviteButton = true 
+  showInviteButton = true,
 }: InvitesManagerProps) {
   const { user } = useAuth();
   const {
@@ -30,7 +32,7 @@ export function InvitesManager({
     acceptInvite,
     rejectInvite,
     cancelInvite,
-    resendInvite
+    resendInvite,
   } = useInvites(projectId);
 
   const [showInviteModal, setShowInviteModal] = React.useState(false);
@@ -41,7 +43,7 @@ export function InvitesManager({
     try {
       await acceptInvite(inviteId);
     } catch (err) {
-      console.error('Failed to accept invite:', err);
+      console.error("Failed to accept invite:", err);
     } finally {
       setActionLoading(null);
     }
@@ -52,20 +54,20 @@ export function InvitesManager({
     try {
       await rejectInvite(inviteId);
     } catch (err) {
-      console.error('Failed to reject invite:', err);
+      console.error("Failed to reject invite:", err);
     } finally {
       setActionLoading(null);
     }
   };
 
   const handleCancel = async (inviteId: string) => {
-    if (!confirm('Czy na pewno chcesz anulować to zaproszenie?')) return;
-    
+    if (!confirm("Czy na pewno chcesz anulować to zaproszenie?")) return;
+
     setActionLoading(inviteId);
     try {
       await cancelInvite(inviteId);
     } catch (err) {
-      console.error('Failed to cancel invite:', err);
+      console.error("Failed to cancel invite:", err);
     } finally {
       setActionLoading(null);
     }
@@ -76,7 +78,7 @@ export function InvitesManager({
     try {
       await resendInvite(inviteId);
     } catch (err) {
-      console.error('Failed to resend invite:', err);
+      console.error("Failed to resend invite:", err);
     } finally {
       setActionLoading(null);
     }
@@ -84,28 +86,28 @@ export function InvitesManager({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending':
+      case "pending":
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded border border-yellow-200">
             <Clock className="w-3 h-3" />
             Oczekuje
           </span>
         );
-      case 'accepted':
+      case "accepted":
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 text-xs rounded border border-green-200">
             <Check className="w-3 h-3" />
             Zaakceptowane
           </span>
         );
-      case 'rejected':
+      case "rejected":
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 text-xs rounded border border-red-200">
             <X className="w-3 h-3" />
             Odrzucone
           </span>
         );
-      case 'expired':
+      case "expired":
         return (
           <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded border border-gray-200">
             <Clock className="w-3 h-3" />
@@ -118,12 +120,12 @@ export function InvitesManager({
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pl-PL', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("pl-PL", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
@@ -144,15 +146,17 @@ export function InvitesManager({
       {/* Header */}
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900">Zaproszenia</h3>
-        {showInviteButton && projectId && (user?.role === 'employer' || user?.role === 'accountant') && (
-          <button
-            onClick={() => setShowInviteModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Mail className="w-4 h-4" />
-            Zaproś członka
-          </button>
-        )}
+        {showInviteButton &&
+          projectId &&
+          (user?.role === "employer" || user?.role === "accountant") && (
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              Zaproś członka
+            </button>
+          )}
       </div>
 
       {error && (
@@ -189,7 +193,7 @@ export function InvitesManager({
                   )}
                   <p className="text-xs text-gray-500">
                     Wysłane: {formatDate(invite.created_at)}
-                    {' • '}
+                    {" • "}
                     Wygasa: {formatDate(invite.expires_at)}
                   </p>
                 </div>
@@ -225,12 +229,24 @@ export function InvitesManager({
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">E-mail</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Rola</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Status</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Wysłane</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">Wygasa</th>
-                  <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">Akcje</th>
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                    E-mail
+                  </th>
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                    Rola
+                  </th>
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                    Status
+                  </th>
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                    Wysłane
+                  </th>
+                  <th className="text-left px-4 py-3 text-sm font-semibold text-gray-700">
+                    Wygasa
+                  </th>
+                  <th className="text-right px-4 py-3 text-sm font-semibold text-gray-700">
+                    Akcje
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -238,29 +254,56 @@ export function InvitesManager({
                   <tr key={invite.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-gray-400" />
-                        <span className="text-sm text-gray-900">{invite.invitee_email}</span>
+                        {invite.metadata?.type === "cleaning_company" ? (
+                          <Building2 className="w-4 h-4 text-blue-500" />
+                        ) : (
+                          <Mail className="w-4 h-4 text-gray-400" />
+                        )}
+                        <div>
+                          <span className="text-sm text-gray-900">
+                            {invite.invitee_email}
+                          </span>
+                          {invite.metadata?.type === "cleaning_company" && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded">
+                                Firma: {invite.metadata.company_name}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="text-sm text-gray-700">{invite.role}</span>
+                      <span className="text-sm text-gray-700">
+                        {invite.role}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       {getStatusBadge(invite.status)}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-sm text-gray-600">
-                        {new Date(invite.created_at).toLocaleDateString('pl-PL')}
+                        {new Date(invite.created_at).toLocaleDateString(
+                          "pl-PL"
+                        )}
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-sm ${isExpired(invite.expires_at) ? 'text-red-600 font-medium' : 'text-gray-600'}`}>
-                        {new Date(invite.expires_at).toLocaleDateString('pl-PL')}
+                      <span
+                        className={`text-sm ${
+                          isExpired(invite.expires_at)
+                            ? "text-red-600 font-medium"
+                            : "text-gray-600"
+                        }`}
+                      >
+                        {new Date(invite.expires_at).toLocaleDateString(
+                          "pl-PL"
+                        )}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        {invite.status === 'pending' && (
+                        {invite.status === "pending" && (
                           <>
                             <button
                               onClick={() => handleResend(invite.id)}
@@ -294,11 +337,13 @@ export function InvitesManager({
       {sentInvites.length === 0 && receivedInvites.length === 0 && (
         <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
           <Mail className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-          <h4 className="text-lg font-medium text-gray-900 mb-1">Brak zaproszeń</h4>
+          <h4 className="text-lg font-medium text-gray-900 mb-1">
+            Brak zaproszeń
+          </h4>
           <p className="text-gray-600 mb-4">
             {showInviteButton && projectId
-              ? 'Zaproś członków do projektu, aby rozpocząć współpracę'
-              : 'Nie masz żadnych zaproszeń'}
+              ? "Zaproś członków do projektu, aby rozpocząć współpracę"
+              : "Nie masz żadnych zaproszeń"}
           </p>
           {showInviteButton && projectId && (
             <button

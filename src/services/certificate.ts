@@ -4,11 +4,11 @@
  * Managing certificates for workers
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 
 export interface Certificate {
   id: string;
-  name: string;
+  certificate_name: string; // Fixed: was 'name', now matches database
   description?: string;
   category: string;
   subcategory?: string;
@@ -42,7 +42,6 @@ export interface Certificate {
   keywords?: string[];
   related_skills?: string[];
   job_titles?: string[];
-  is_active: boolean;
   is_popular: boolean;
   created_at: string;
   updated_at: string;
@@ -82,29 +81,31 @@ export interface CertificateFilters {
  */
 export async function getCertificates(filters?: CertificateFilters) {
   let query = supabase
-    .from('v_certificates')
-    .select('*')
-    .eq('is_active', true)
-    .order('name', { ascending: true });
+    .from("certificates")
+    .select("*")
+    // Removed .eq('is_active', true) - column doesn't exist in certificates table
+    .order("certificate_name", { ascending: true }); // Fixed: 'name' → 'certificate_name'
 
   if (filters?.category) {
-    query = query.eq('category', filters.category);
+    query = query.eq("category", filters.category);
   }
 
   if (filters?.industry) {
-    query = query.eq('industry', filters.industry);
+    query = query.eq("industry", filters.industry);
   }
 
   if (filters?.difficulty_level) {
-    query = query.eq('difficulty_level', filters.difficulty_level);
+    query = query.eq("difficulty_level", filters.difficulty_level);
   }
 
   if (filters?.is_popular) {
-    query = query.eq('is_popular', true);
+    query = query.eq("is_popular", true);
   }
 
   if (filters?.search) {
-    query = query.or(`name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`);
+    query = query.or(
+      `certificate_name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
+    );
   }
 
   const { data, error } = await query;
@@ -118,9 +119,9 @@ export async function getCertificates(filters?: CertificateFilters) {
  */
 export async function getCertificateById(id: string) {
   const { data, error } = await supabase
-    .from('v_certificates')
-    .select('*')
-    .eq('id', id)
+    .from("certificates")
+    .select("*")
+    .eq("id", id)
     .single();
 
   if (error) throw error;
@@ -132,7 +133,7 @@ export async function getCertificateById(id: string) {
  */
 export async function createCertificate(certificate: Partial<Certificate>) {
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from("certificates")
     .insert(certificate)
     .select()
     .single();
@@ -144,11 +145,14 @@ export async function createCertificate(certificate: Partial<Certificate>) {
 /**
  * Update certificate
  */
-export async function updateCertificate(id: string, updates: Partial<Certificate>) {
+export async function updateCertificate(
+  id: string,
+  updates: Partial<Certificate>
+) {
   const { data, error } = await supabase
-    .from('v_certificates')
+    .from("certificates")
     .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -160,10 +164,7 @@ export async function updateCertificate(id: string, updates: Partial<Certificate
  * Delete certificate
  */
 export async function deleteCertificate(id: string) {
-  const { error } = await supabase
-    .from('v_certificates')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from("certificates").delete().eq("id", id);
 
   if (error) throw error;
 }
@@ -173,16 +174,18 @@ export async function deleteCertificate(id: string) {
  */
 export async function getWorkerCertificates(workerId?: string) {
   let query = supabase
-    .from('worker_certificates')
-    .select(`
+    .from("worker_certificates")
+    .select(
+      `
       *,
       certificate:certificates(*),
       worker:workers(id, first_name, last_name, email)
-    `)
-    .order('created_at', { ascending: false });
+    `
+    )
+    .order("created_at", { ascending: false });
 
   if (workerId) {
-    query = query.eq('worker_id', workerId);
+    query = query.eq("worker_id", workerId);
   }
 
   const { data, error } = await query;
@@ -202,7 +205,7 @@ export async function assignCertificateToWorker(data: {
   expiry_date?: string;
 }) {
   const { data: result, error } = await supabase
-    .from('worker_certificates')
+    .from("worker_certificates")
     .insert(data)
     .select()
     .single();
@@ -216,12 +219,12 @@ export async function assignCertificateToWorker(data: {
  */
 export async function verifyWorkerCertificate(id: string, verified: boolean) {
   const { data, error } = await supabase
-    .from('worker_certificates')
-    .update({ 
+    .from("worker_certificates")
+    .update({
       is_verified: verified,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
-    .eq('id', id)
+    .eq("id", id)
     .select()
     .single();
 
@@ -234,36 +237,34 @@ export async function verifyWorkerCertificate(id: string, verified: boolean) {
  */
 export async function getCertificateStats() {
   const { data: certificates, error: certError } = await supabase
-    .from('v_certificates')
-    .select('id, category, is_popular')
-    .eq('is_active', true);
+    .from("certificates")
+    .select("id, certificate_type, verified");
 
   const { data: workerCerts, error: wcError } = await supabase
-    .from('worker_certificates')
-    .select('id, is_verified, expiry_date');
+    .from("certificates")
+    .select("id, verified, expiry_date");
 
   if (certError || wcError) throw certError || wcError;
 
   const total = certificates?.length || 0;
-  const popular = certificates?.filter(c => c.is_popular).length || 0;
   const assigned = workerCerts?.length || 0;
-  const verified = workerCerts?.filter(wc => wc.is_verified).length || 0;
-  
+  const verified = workerCerts?.filter((wc) => wc.verified).length || 0;
+
   // Count expiring soon (next 30 days)
   const now = new Date();
   const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const expiringSoon = workerCerts?.filter(wc => {
-    if (!wc.expiry_date) return false;
-    const expiry = new Date(wc.expiry_date);
-    return expiry > now && expiry < thirtyDaysFromNow;
-  }).length || 0;
+  const expiringSoon =
+    workerCerts?.filter((wc) => {
+      if (!wc.expiry_date) return false;
+      const expiry = new Date(wc.expiry_date);
+      return expiry > now && expiry < thirtyDaysFromNow;
+    }).length || 0;
 
   return {
     total_certificates: total,
-    popular_certificates: popular,
     assigned_certificates: assigned,
     verified_certificates: verified,
-    expiring_soon: expiringSoon
+    expiring_soon: expiringSoon,
   };
 }
 
@@ -275,15 +276,17 @@ export async function getExpiringCertificates(days: number = 30) {
   const futureDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
   const { data, error } = await supabase
-    .from('worker_certificates')
-    .select(`
+    .from("worker_certificates")
+    .select(
+      `
       *,
       certificate:certificates(*),
       worker:workers(id, first_name, last_name, email)
-    `)
-    .gte('expiry_date', now.toISOString())
-    .lte('expiry_date', futureDate.toISOString())
-    .order('expiry_date', { ascending: true });
+    `
+    )
+    .gte("expiry_date", now.toISOString())
+    .lte("expiry_date", futureDate.toISOString())
+    .order("expiry_date", { ascending: true });
 
   if (error) throw error;
   return data as WorkerCertificate[];

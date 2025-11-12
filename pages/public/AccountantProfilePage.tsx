@@ -1,19 +1,21 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  getAccountant, 
-  getAccountantServices, 
+import { useState, useEffect } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
+import {
+  getAccountant,
+  getAccountantServices,
   getAccountantReviews,
   type Accountant,
   type AccountantService,
-  type AccountantReview 
-} from '../../src/services/accountantService';
-import { 
-  Star, 
-  MapPin, 
-  Mail, 
-  Phone, 
-  Globe, 
+  type AccountantReview,
+} from "../../src/services/accountantService";
+import { Modal } from "../../components/Modal";
+import {
+  Star,
+  MapPin,
+  Mail,
+  Phone,
+  Globe,
   Briefcase,
   Award,
   Languages,
@@ -21,10 +23,10 @@ import {
   MessageSquare,
   CheckCircleIcon,
   ArrowLeft,
-  ExternalLink
-} from '../../components/icons';
-import { AddToTeamButton } from '../../components/AddToTeamButton';
-import { useAuth } from '../../contexts/AuthContext';
+  ExternalLink,
+} from "../../components/icons";
+import { AddToTeamButton } from "../../components/AddToTeamButton";
+import { useAuth } from "../../contexts/AuthContext";
 
 export default function AccountantProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -34,13 +36,45 @@ export default function AccountantProfilePage() {
   const [services, setServices] = useState<AccountantService[]>([]);
   const [reviews, setReviews] = useState<AccountantReview[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'services' | 'reviews' | 'about'>('services');
+  const [activeTab, setActiveTab] = useState<
+    "about" | "services" | "reviews" | "contact"
+  >("about");
+
+  // Contact & Review modals
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [contactSubject, setContactSubject] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [employerId, setEmployerId] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
       loadAccountantData();
     }
   }, [id]);
+
+  // Load employer ID if user is employer
+  useEffect(() => {
+    const loadEmployerId = async () => {
+      if (authUser && authUser.role === "employer") {
+        try {
+          const { data, error } = await supabase
+            .from("employers")
+            .select("id")
+            .eq("profile_id", authUser.id)
+            .maybeSingle();
+
+          if (!error && data) {
+            setEmployerId(data.id);
+          }
+        } catch (err) {
+          console.error("Error loading employer ID:", err);
+        }
+      }
+    };
+
+    loadEmployerId();
+  }, [authUser]);
 
   const loadAccountantData = async () => {
     if (!id) return;
@@ -49,17 +83,115 @@ export default function AccountantProfilePage() {
       const [accountantData, servicesData, reviewsData] = await Promise.all([
         getAccountant(id),
         getAccountantServices(id),
-        getAccountantReviews(id)
+        getAccountantReviews(id),
       ]);
 
       setAccountant(accountantData);
       setServices(servicesData);
       setReviews(reviewsData);
     } catch (error) {
-      console.error('Error loading accountant:', error);
+      console.error("Error loading accountant:", error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenContact = () => {
+    if (!authUser) {
+      alert("Zaloguj się aby wysłać wiadomość do księgowego");
+      return;
+    }
+    setIsContactModalOpen(true);
+  };
+
+  const handleSendContact = async () => {
+    if (!contactSubject.trim() || !contactMessage.trim()) {
+      alert("Proszę wypełnić wszystkie pola");
+      return;
+    }
+
+    if (!authUser?.id || !accountant?.profile_id) {
+      alert("❌ Błąd: brak danych użytkownika lub księgowego");
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("messages").insert({
+        sender_id: authUser.id,
+        recipient_id: accountant.profile_id,
+        subject: contactSubject,
+        content: contactMessage,
+        is_read: false,
+      });
+
+      if (error) throw error;
+
+      alert(
+        `✅ Wiadomość wysłana do ${
+          accountant.company_name || accountant.full_name
+        }!`
+      );
+      setIsContactModalOpen(false);
+      setContactSubject("");
+      setContactMessage("");
+    } catch (err: any) {
+      console.error("Error sending message:", err);
+      alert(`❌ Nie udało się wysłać wiadomości: ${err.message}`);
+    }
+  };
+
+  const handleOpenReview = async () => {
+    if (!authUser) {
+      alert("Zaloguj się jako pracodawca aby wystawić opinię");
+      return;
+    }
+
+    if (!employerId || !accountant?.id) {
+      alert("⚠️ Ładowanie danych... Spróbuj ponownie za chwilę.");
+      return;
+    }
+
+    // Check if employer already reviewed this accountant
+    try {
+      const { data: existingReview, error } = await supabase
+        .from("accountant_reviews")
+        .select("id, rating, created_at")
+        .eq("employer_id", employerId)
+        .eq("accountant_id", accountant.id)
+        .maybeSingle();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error checking existing review:", error);
+      }
+
+      if (existingReview) {
+        const reviewDate = existingReview.created_at
+          ? new Date(existingReview.created_at).toLocaleDateString("pl-PL")
+          : "nieznana data";
+        const confirmed = confirm(
+          `⚠️ Już wystawiłeś opinię dla ${
+            accountant.company_name || accountant.full_name
+          } (${existingReview.rating}⭐, ${reviewDate}).\n\n` +
+            `Obecnie system pozwala na jedną opinię na księgowego.\n\n` +
+            `Czy chcesz kontynuować mimo to? (może wystąpić błąd)`
+        );
+
+        if (!confirmed) return;
+      }
+    } catch (err) {
+      console.error("Error checking review:", err);
+    }
+
+    setIsReviewModalOpen(true);
+  };
+
+  const handleReviewSuccess = () => {
+    alert(
+      `✅ Dziękujemy za wystawienie opinii dla ${
+        accountant?.company_name || accountant?.full_name
+      }!`
+    );
+    loadAccountantData(); // Reload to show new review
   };
 
   if (loading) {
@@ -77,8 +209,12 @@ export default function AccountantProfilePage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Księgowy nie znaleziony</h2>
-          <p className="text-gray-600 mb-6">Ten profil nie istnieje lub został usunięty</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Księgowy nie znaleziony
+          </h2>
+          <p className="text-gray-600 mb-6">
+            Ten profil nie istnieje lub został usunięty
+          </p>
           <Link
             to="/accountants"
             className="inline-flex items-center gap-2 px-6 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
@@ -91,13 +227,17 @@ export default function AccountantProfilePage() {
     );
   }
 
+  // Make handlers available to ContactTab
+  (window as any).handleOpenContact = handleOpenContact;
+  (window as any).handleOpenReview = handleOpenReview;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Back Button */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <button
-            onClick={() => navigate('/accountants')}
+            onClick={() => navigate("/accountants")}
             className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -119,17 +259,25 @@ export default function AccountantProfilePage() {
             <div className="flex-1">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h1 className="text-4xl font-bold mb-2">{accountant.full_name}</h1>
+                  <h1 className="text-4xl font-bold mb-2">
+                    {accountant.full_name}
+                  </h1>
                   {accountant.company_name && (
-                    <p className="text-xl text-amber-100 mb-4">{accountant.company_name}</p>
+                    <p className="text-xl text-amber-100 mb-4">
+                      {accountant.company_name}
+                    </p>
                   )}
-                  
+
                   {/* Rating */}
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
                       <Star className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-                      <span className="text-lg font-semibold">{accountant.rating.toFixed(1)}</span>
-                      <span className="text-amber-100">({accountant.rating_count} opinii)</span>
+                      <span className="text-lg font-semibold">
+                        {accountant.rating.toFixed(1)}
+                      </span>
+                      <span className="text-amber-100">
+                        ({accountant.rating_count} opinii)
+                      </span>
                     </div>
                     {accountant.is_verified && (
                       <div className="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-lg">
@@ -149,7 +297,9 @@ export default function AccountantProfilePage() {
                     )}
                     <div className="flex items-center gap-2">
                       <Briefcase className="w-4 h-4" />
-                      <span>{accountant.years_experience} lat doświadczenia</span>
+                      <span>
+                        {accountant.years_experience} lat doświadczenia
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Award className="w-4 h-4" />
@@ -172,25 +322,32 @@ export default function AccountantProfilePage() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-8">
+          <div className="flex gap-1">
             {[
-              { id: 'services', label: 'Usługi' },
-              { id: 'reviews', label: 'Opinie' },
-              { id: 'about', label: 'O mnie' },
+              { id: "about", label: "O mnie", icon: "📋" },
+              { id: "services", label: "Usługi", icon: "💼" },
+              {
+                id: "reviews",
+                label: `Opinie (${reviews.length})`,
+                icon: "⭐",
+              },
+              { id: "contact", label: "Kontakt", icon: "📞" },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`
-                  px-4 py-4 border-b-2 font-medium transition-colors
-                  ${activeTab === tab.id
-                    ? 'border-amber-600 text-amber-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                  px-6 py-4 font-medium transition-colors border-b-2
+                  ${
+                    activeTab === tab.id
+                      ? "border-amber-600 text-amber-600"
+                      : "border-transparent text-gray-600 hover:text-gray-900"
                   }
                 `}
               >
+                <span className="mr-2">{tab.icon}</span>
                 {tab.label}
               </button>
             ))}
@@ -203,48 +360,159 @@ export default function AccountantProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {activeTab === 'services' && <ServicesTab services={services} />}
-            {activeTab === 'reviews' && <ReviewsTab reviews={reviews} accountant={accountant} />}
-            {activeTab === 'about' && <AboutTab accountant={accountant} />}
+            {activeTab === "about" && <AboutTab accountant={accountant} />}
+            {activeTab === "services" && <ServicesTab services={services} />}
+            {activeTab === "reviews" && (
+              <ReviewsTab reviews={reviews} accountant={accountant} />
+            )}
+            {activeTab === "contact" && <ContactTab accountant={accountant} />}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Add to Team Button - visible for employer/accountant */}
-            {(authUser?.role === 'employer' || authUser?.role === 'accountant') && accountant?.id && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-5 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-semibold text-gray-900 mb-1">
-                      Współpraca w projekcie
-                    </h4>
-                    <p className="text-xs text-gray-600 mb-3 leading-relaxed">
-                      Zaproś {accountant.company_name || accountant.full_name || 'tego księgowego'} do projektu zespołowego
-                    </p>
-                    <AddToTeamButton 
-                      userId={accountant.id}
-                      userEmail={accountant.email}
-                      userType="accountant"
-                      displayName={accountant.company_name || accountant.full_name || accountant.email}
-                      avatarUrl={accountant.avatar_url}
-                      className="w-full"
-                    />
+            {(authUser?.role === "employer" ||
+              authUser?.role === "accountant") &&
+              accountant?.id && (
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-5 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <svg
+                        className="w-6 h-6 text-blue-600"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                        Współpraca w projekcie
+                      </h4>
+                      <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                        Zaproś{" "}
+                        {accountant.company_name ||
+                          accountant.full_name ||
+                          "tego księgowego"}{" "}
+                        do projektu zespołowego
+                      </p>
+                      <AddToTeamButton
+                        userId={accountant.id}
+                        userEmail={accountant.email}
+                        userType="accountant"
+                        displayName={
+                          accountant.company_name ||
+                          accountant.full_name ||
+                          accountant.email
+                        }
+                        avatarUrl={accountant.avatar_url}
+                        className="w-full"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-            
+              )}
+
             <ContactCard accountant={accountant} />
             <SpecializationsCard accountant={accountant} />
             <LanguagesCard accountant={accountant} />
           </div>
         </div>
       </div>
+
+      {/* MODALS */}
+      {/* Contact Modal */}
+      {accountant && (
+        <Modal
+          isOpen={isContactModalOpen}
+          onClose={() => setIsContactModalOpen(false)}
+          title={`Kontakt: ${accountant.company_name || accountant.full_name}`}
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="bg-amber-50 p-4 rounded-lg mb-4">
+              <p className="text-sm text-amber-800">
+                💡 <strong>Wskazówka:</strong> Opisz dokładnie swoje potrzeby
+                księgowe, wielkość działalności i preferowane formy współpracy.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Temat <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={contactSubject}
+                onChange={(e) => setContactSubject(e.target.value)}
+                placeholder="np. Zapytanie o obsługę księgową ZZP"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Wiadomość <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={contactMessage}
+                onChange={(e) => setContactMessage(e.target.value)}
+                rows={8}
+                placeholder={`Dzień dobry,\n\nJestem zainteresowany Pana/Pani usługami księgowymi.\n\nRodzaj działalności: \nForma prawna: \nPrzybliżony obrót: \nOczekiwany zakres usług: \n\nMogę omówić szczegóły telefonicznie.\n\nPozdrawiam`}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {contactMessage.length} znaków
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => setIsContactModalOpen(false)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+            >
+              Anuluj
+            </button>
+            <button
+              onClick={handleSendContact}
+              className="flex-1 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 font-medium"
+            >
+              📨 Wyślij wiadomość
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Review Modal - TODO: Create ReviewAccountantModal component */}
+      {accountant && authUser && authUser.role === "employer" && employerId && (
+        <div>
+          {/* Placeholder - need to create ReviewAccountantModal component */}
+          {isReviewModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md">
+                <h3 className="text-lg font-bold mb-4">Wystaw opinię</h3>
+                <p className="text-gray-600 mb-4">
+                  Funkcja wystawiania opinii dla księgowych będzie wkrótce
+                  dostępna.
+                </p>
+                <button
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="w-full bg-amber-600 text-white py-2 rounded-lg hover:bg-amber-700"
+                >
+                  Zamknij
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -259,7 +527,9 @@ function ServicesTab({ services }: { services: AccountantService[] }) {
       <div className="bg-white rounded-lg shadow-sm p-12 text-center">
         <Briefcase className="w-16 h-16 mx-auto mb-4 text-gray-400" />
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Brak usług</h3>
-        <p className="text-gray-600">Ten księgowy nie dodał jeszcze swoich usług</p>
+        <p className="text-gray-600">
+          Ten księgowy nie dodał jeszcze swoich usług
+        </p>
       </div>
     );
   }
@@ -267,16 +537,24 @@ function ServicesTab({ services }: { services: AccountantService[] }) {
   return (
     <div className="space-y-4">
       {services.map((service) => (
-        <div key={service.id} className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow">
+        <div
+          key={service.id}
+          className="bg-white rounded-lg shadow-sm p-6 hover:shadow-md transition-shadow"
+        >
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">{service.name}</h3>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                {service.name}
+              </h3>
               <p className="text-gray-600 mb-4">{service.description}</p>
-              
+
               {service.features && service.features.length > 0 && (
                 <ul className="space-y-2 mb-4">
                   {service.features.map((feature: string, idx: number) => (
-                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                    <li
+                      key={idx}
+                      className="flex items-start gap-2 text-sm text-gray-700"
+                    >
                       <CheckCircleIcon className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
                       <span>{feature}</span>
                     </li>
@@ -298,12 +576,20 @@ function ServicesTab({ services }: { services: AccountantService[] }) {
   );
 }
 
-function ReviewsTab({ reviews, accountant }: { reviews: AccountantReview[]; accountant: Accountant }) {
+function ReviewsTab({
+  reviews,
+  accountant,
+}: {
+  reviews: AccountantReview[];
+  accountant: Accountant;
+}) {
   if (reviews.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow-sm p-12 text-center">
         <MessageSquare className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Brak opinii</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          Brak opinii
+        </h3>
         <p className="text-gray-600">Ten księgowy nie ma jeszcze opinii</p>
       </div>
     );
@@ -315,27 +601,31 @@ function ReviewsTab({ reviews, accountant }: { reviews: AccountantReview[]; acco
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex items-center gap-8">
           <div className="text-center">
-            <div className="text-5xl font-bold text-gray-900 mb-2">{accountant.rating.toFixed(1)}</div>
+            <div className="text-5xl font-bold text-gray-900 mb-2">
+              {accountant.rating.toFixed(1)}
+            </div>
             <div className="flex items-center gap-1 justify-center mb-1">
               {[...Array(5)].map((_, i) => (
                 <Star
                   key={i}
                   className={`w-5 h-5 ${
                     i < Math.round(accountant.rating)
-                      ? 'fill-yellow-400 text-yellow-400'
-                      : 'text-gray-300'
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "text-gray-300"
                   }`}
                 />
               ))}
             </div>
-            <div className="text-sm text-gray-600">{accountant.rating_count} opinii</div>
+            <div className="text-sm text-gray-600">
+              {accountant.rating_count} opinii
+            </div>
           </div>
 
           <div className="flex-1 space-y-2">
             {[5, 4, 3, 2, 1].map((stars) => {
               const count = reviews.filter((r) => r.rating === stars).length;
               const percentage = (count / reviews.length) * 100;
-              
+
               return (
                 <div key={stars} className="flex items-center gap-3">
                   <span className="text-sm text-gray-600 w-8">{stars}★</span>
@@ -359,29 +649,31 @@ function ReviewsTab({ reviews, accountant }: { reviews: AccountantReview[]; acco
           <div key={review.id} className="bg-white rounded-lg shadow-sm p-6">
             <div className="flex items-start gap-4">
               <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-lg font-semibold text-gray-600">
-                {(review.client_name || review.reviewer_name || 'A').charAt(0)}
+                {(review.client_name || review.reviewer_name || "A").charAt(0)}
               </div>
-              
+
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <h4 className="font-semibold text-gray-900">{review.client_name || review.reviewer_name || 'Anoniem'}</h4>
+                  <h4 className="font-semibold text-gray-900">
+                    {review.client_name || review.reviewer_name || "Anoniem"}
+                  </h4>
                   <div className="flex items-center gap-1">
                     {[...Array(5)].map((_, i) => (
                       <Star
                         key={i}
                         className={`w-4 h-4 ${
                           i < review.rating
-                            ? 'fill-yellow-400 text-yellow-400'
-                            : 'text-gray-300'
+                            ? "fill-yellow-400 text-yellow-400"
+                            : "text-gray-300"
                         }`}
                       />
                     ))}
                   </div>
                   <span className="text-sm text-gray-500">
-                    {new Date(review.created_at).toLocaleDateString('nl-NL')}
+                    {new Date(review.created_at).toLocaleDateString("nl-NL")}
                   </span>
                 </div>
-                
+
                 <p className="text-gray-700">{review.comment}</p>
               </div>
             </div>
@@ -399,19 +691,219 @@ function AboutTab({ accountant }: { accountant: Accountant }) {
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-4">O mnie</h3>
         <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-          {accountant.bio || 'Księgowy nie dodał jeszcze opisu'}
+          {accountant.bio || "Księgowy nie dodał jeszcze opisu"}
         </p>
       </div>
 
       {/* Professional Info */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Informacje zawodowe</h3>
+        <h3 className="text-xl font-semibold text-gray-900 mb-4">
+          Informacje zawodowe
+        </h3>
         <div className="grid grid-cols-2 gap-6">
-          <InfoField label="Lata doświadczenia" value={`${accountant.years_experience} lat`} />
-          <InfoField label="Liczba klientów" value={accountant.total_clients.toString()} />
-          {accountant.kvk_number && <InfoField label="KVK" value={accountant.kvk_number} />}
-          {accountant.btw_number && <InfoField label="BTW" value={accountant.btw_number} />}
-          {accountant.license_number && <InfoField label="Licencja" value={accountant.license_number} />}
+          <InfoField
+            label="Lata doświadczenia"
+            value={`${accountant.years_experience} lat`}
+          />
+          <InfoField
+            label="Liczba klientów"
+            value={accountant.total_clients.toString()}
+          />
+          {accountant.kvk_number && (
+            <InfoField label="KVK" value={accountant.kvk_number} />
+          )}
+          {accountant.btw_number && (
+            <InfoField label="BTW" value={accountant.btw_number} />
+          )}
+          {accountant.license_number && (
+            <InfoField label="Licencja" value={accountant.license_number} />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContactTab({ accountant }: { accountant: Accountant }) {
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Contact Info Card */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6">
+          Dane kontaktowe
+        </h2>
+        <div className="space-y-4">
+          {accountant.company_name && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nazwa firmy
+              </label>
+              <p className="text-lg text-gray-900">{accountant.company_name}</p>
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Osoba kontaktowa
+            </label>
+            <p className="text-lg text-gray-900">{accountant.full_name}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <a
+              href={`mailto:${accountant.email}`}
+              className="text-lg text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-2"
+            >
+              <Mail className="w-5 h-5" />
+              {accountant.email}
+            </a>
+          </div>
+
+          {accountant.phone && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Telefon
+              </label>
+              <a
+                href={`tel:${accountant.phone}`}
+                className="text-lg text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-2"
+              >
+                <Phone className="w-5 h-5" />
+                {accountant.phone}
+              </a>
+            </div>
+          )}
+
+          {accountant.city && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Lokalizacja
+              </label>
+              <p className="text-lg text-gray-900 flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-gray-400" />
+                {accountant.city}, {accountant.country}
+              </p>
+            </div>
+          )}
+
+          {accountant.website && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Strona internetowa
+              </label>
+              <a
+                href={accountant.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lg text-amber-600 hover:text-amber-700 hover:underline flex items-center gap-2"
+              >
+                <Globe className="w-5 h-5" />
+                {accountant.website}
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Professional credentials */}
+        {(accountant.kvk_number ||
+          accountant.btw_number ||
+          accountant.license_number) && (
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">
+              Dane rejestracyjne
+            </h3>
+            <div className="space-y-2 text-sm">
+              {accountant.kvk_number && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">KVK:</span>
+                  <span className="text-gray-900 font-medium">
+                    {accountant.kvk_number}
+                  </span>
+                </div>
+              )}
+              {accountant.btw_number && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">BTW:</span>
+                  <span className="text-gray-900 font-medium">
+                    {accountant.btw_number}
+                  </span>
+                </div>
+              )}
+              {accountant.license_number && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Licencja:</span>
+                  <span className="text-gray-900 font-medium">
+                    {accountant.license_number}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Contact Card */}
+      <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-lg p-6 border border-amber-200">
+        <h3 className="text-lg font-bold text-gray-900 mb-4">
+          Wyślij wiadomość
+        </h3>
+        <p className="text-sm text-gray-600 mb-6">
+          Skontaktuj się z {accountant.company_name || accountant.full_name} aby
+          omówić szczegóły współpracy.
+        </p>
+
+        {/* Message & Review Actions */}
+        <div className="space-y-3">
+          <button
+            onClick={() => (window as any).handleOpenContact?.()}
+            className="block w-full bg-amber-600 text-white text-center py-3 rounded-lg font-medium hover:bg-amber-700 transition-colors shadow-sm hover:shadow-md"
+          >
+            📨 Wyślij wiadomość
+          </button>
+
+          <button
+            onClick={() => (window as any).handleOpenReview?.()}
+            className="block w-full bg-yellow-500 text-white text-center py-3 rounded-lg font-medium hover:bg-yellow-600 transition-colors shadow-sm hover:shadow-md"
+          >
+            ⭐ Wystaw opinię
+          </button>
+        </div>
+
+        {/* Direct contact fallback */}
+        <div className="mt-4 pt-4 border-t border-amber-200">
+          <p className="text-xs text-gray-600 mb-2">
+            Lub skontaktuj się bezpośrednio:
+          </p>
+          <div className="space-y-2">
+            {accountant.phone && (
+              <a
+                href={`tel:${accountant.phone}`}
+                className="block text-sm text-amber-600 hover:text-amber-700 hover:underline"
+              >
+                📞 {accountant.phone}
+              </a>
+            )}
+            <a
+              href={`mailto:${accountant.email}`}
+              className="block text-sm text-amber-600 hover:text-amber-700 hover:underline"
+            >
+              ✉️ {accountant.email}
+            </a>
+          </div>
+        </div>
+
+        {/* Experience Badge */}
+        <div className="mt-6 pt-6 border-t border-amber-200">
+          <div className="bg-white rounded-lg p-4 text-center">
+            <div className="text-3xl font-bold text-amber-600 mb-1">
+              {accountant.years_experience}+
+            </div>
+            <div className="text-sm text-gray-600">lat doświadczenia</div>
+          </div>
         </div>
       </div>
     </div>
@@ -426,7 +918,7 @@ function ContactCard({ accountant }: { accountant: Accountant }) {
   return (
     <div className="bg-white rounded-lg shadow-sm p-6 space-y-4">
       <h3 className="text-lg font-semibold text-gray-900">Kontakt</h3>
-      
+
       <a
         href={`mailto:${accountant.email}`}
         className="flex items-center gap-3 text-gray-700 hover:text-amber-600 transition-colors"
@@ -475,7 +967,9 @@ function SpecializationsCard({ accountant }: { accountant: Accountant }) {
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Specjalizacje</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        Specjalizacje
+      </h3>
       <div className="flex flex-wrap gap-2">
         {accountant.specializations.map((spec: string) => (
           <span

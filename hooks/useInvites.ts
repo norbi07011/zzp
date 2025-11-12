@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
-import { useAuth } from '../contexts/AuthContext';
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+import { useAuth } from "../contexts/AuthContext";
 
-const supabaseUrl = 'https://dtnotuyagygexmkyqtgb.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw';
+const supabaseUrl = "https://dtnotuyagygexmkyqtgb.supabase.co";
+const supabaseKey =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR0bm90dXlhZ3lnZXhta3lxdGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk3ODUzMzAsImV4cCI6MjA3NTM2MTMzMH0.8gsHqR3mlGVhry2hIlxQkfFDfh5vgBrxGW_eXPXuRqw";
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export type InviteStatus = 'pending' | 'accepted' | 'rejected' | 'expired';
+export type InviteStatus = "pending" | "accepted" | "rejected" | "expired";
 
 export interface ProjectInvite {
   id: string;
@@ -36,6 +37,7 @@ export interface CreateInviteData {
   canManageProject?: boolean;
   canViewReports?: boolean;
   inviteMessage?: string;
+  metadata?: any;
 }
 
 export function useInvites(projectId?: string) {
@@ -54,13 +56,13 @@ export function useInvites(projectId?: string) {
 
     try {
       const query = supabase
-        .from('project_invites')
-        .select('*')
-        .eq('inviter_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("project_invites")
+        .select("*")
+        .eq("inviter_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (projectId) {
-        query.eq('project_id', projectId);
+        query.eq("project_id", projectId);
       }
 
       const { data, error: fetchError } = await query;
@@ -68,7 +70,7 @@ export function useInvites(projectId?: string) {
       if (fetchError) throw fetchError;
       setSentInvites(data || []);
     } catch (err: any) {
-      console.error('Error fetching sent invites:', err);
+      console.error("Error fetching sent invites:", err);
       setError(err.message);
     }
   };
@@ -82,16 +84,16 @@ export function useInvites(projectId?: string) {
 
     try {
       const { data, error: fetchError } = await supabase
-        .from('project_invites')
-        .select('*')
+        .from("project_invites")
+        .select("*")
         .or(`invitee_email.eq.${user.email},invitee_id.eq.${user.id}`)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
 
       if (fetchError) throw fetchError;
       setReceivedInvites(data || []);
     } catch (err: any) {
-      console.error('Error fetching received invites:', err);
+      console.error("Error fetching received invites:", err);
       setError(err.message);
     }
   };
@@ -100,41 +102,47 @@ export function useInvites(projectId?: string) {
   const createInvite = async ({
     projectId: inviteProjectId,
     inviteeEmail,
-    role = 'member',
+    role = "member",
     canInvite = false,
     canManageProject = false,
     canViewReports = false,
-    inviteMessage
+    inviteMessage,
+    metadata,
   }: CreateInviteData) => {
     try {
       // Generate invite token
-      const { data: tokenData } = await supabase.rpc('generate_invite_token');
-      const inviteToken = tokenData || `invite_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const { data: tokenData } = await supabase.rpc("generate_invite_token");
+      const inviteToken =
+        tokenData ||
+        `invite_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
       const { data, error: createError } = await supabase
-        .from('project_invites')
-        .insert([{
-          project_id: inviteProjectId,
-          inviter_id: user?.id,
-          invitee_email: inviteeEmail.toLowerCase(),
-          role: role,
-          can_invite: canInvite,
-          can_manage_project: canManageProject,
-          can_view_reports: canViewReports,
-          invite_message: inviteMessage,
-          invite_token: inviteToken,
-          status: 'pending'
-        }])
+        .from("project_invites")
+        .insert([
+          {
+            project_id: inviteProjectId,
+            inviter_id: user?.id,
+            invitee_email: inviteeEmail.toLowerCase(),
+            role: role,
+            can_invite: canInvite,
+            can_manage_project: canManageProject,
+            can_view_reports: canViewReports,
+            invite_message: inviteMessage,
+            invite_token: inviteToken,
+            status: "pending",
+            metadata: metadata || null,
+          },
+        ])
         .select()
         .single();
 
       if (createError) throw createError;
 
       // Update local state
-      setSentInvites(prev => [data, ...prev]);
+      setSentInvites((prev) => [data, ...prev]);
 
       // TODO: Send email notification (Resend integration)
-      console.log('📧 Email notification would be sent to:', inviteeEmail);
+      console.log("📧 Email notification would be sent to:", inviteeEmail);
 
       return data;
     } catch (err: any) {
@@ -147,21 +155,21 @@ export function useInvites(projectId?: string) {
   const acceptInvite = async (inviteId: string) => {
     try {
       const { data, error: updateError } = await supabase
-        .from('project_invites')
+        .from("project_invites")
         .update({
-          status: 'accepted',
+          status: "accepted",
           invitee_id: user?.id,
-          accepted_at: new Date().toISOString()
+          accepted_at: new Date().toISOString(),
         })
-        .eq('id', inviteId)
-        .eq('status', 'pending') // Only accept if still pending
+        .eq("id", inviteId)
+        .eq("status", "pending") // Only accept if still pending
         .select()
         .single();
 
       if (updateError) throw updateError;
 
       // Remove from received invites
-      setReceivedInvites(prev => prev.filter(inv => inv.id !== inviteId));
+      setReceivedInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
 
       // Trigger to auto-add to project_members happens in database
 
@@ -176,20 +184,20 @@ export function useInvites(projectId?: string) {
   const rejectInvite = async (inviteId: string) => {
     try {
       const { data, error: updateError } = await supabase
-        .from('project_invites')
+        .from("project_invites")
         .update({
-          status: 'rejected',
-          rejected_at: new Date().toISOString()
+          status: "rejected",
+          rejected_at: new Date().toISOString(),
         })
-        .eq('id', inviteId)
-        .eq('status', 'pending')
+        .eq("id", inviteId)
+        .eq("status", "pending")
         .select()
         .single();
 
       if (updateError) throw updateError;
 
       // Remove from received invites
-      setReceivedInvites(prev => prev.filter(inv => inv.id !== inviteId));
+      setReceivedInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
 
       return data;
     } catch (err: any) {
@@ -202,15 +210,15 @@ export function useInvites(projectId?: string) {
   const cancelInvite = async (inviteId: string) => {
     try {
       const { error: deleteError } = await supabase
-        .from('project_invites')
+        .from("project_invites")
         .delete()
-        .eq('id', inviteId)
-        .eq('inviter_id', user?.id); // Only delete if you sent it
+        .eq("id", inviteId)
+        .eq("inviter_id", user?.id); // Only delete if you sent it
 
       if (deleteError) throw deleteError;
 
       // Remove from sent invites
-      setSentInvites(prev => prev.filter(inv => inv.id !== inviteId));
+      setSentInvites((prev) => prev.filter((inv) => inv.id !== inviteId));
     } catch (err: any) {
       setError(err.message);
       throw err;
@@ -225,22 +233,24 @@ export function useInvites(projectId?: string) {
       newExpiresAt.setDate(newExpiresAt.getDate() + 7);
 
       const { data, error: updateError } = await supabase
-        .from('project_invites')
+        .from("project_invites")
         .update({
-          expires_at: newExpiresAt.toISOString()
+          expires_at: newExpiresAt.toISOString(),
         })
-        .eq('id', inviteId)
-        .eq('inviter_id', user?.id)
+        .eq("id", inviteId)
+        .eq("inviter_id", user?.id)
         .select()
         .single();
 
       if (updateError) throw updateError;
 
       // Update local state
-      setSentInvites(prev => prev.map(inv => inv.id === inviteId ? data : inv));
+      setSentInvites((prev) =>
+        prev.map((inv) => (inv.id === inviteId ? data : inv))
+      );
 
       // TODO: Resend email notification
-      console.log('📧 Email notification would be resent');
+      console.log("📧 Email notification would be resent");
 
       return data;
     } catch (err: any) {
@@ -250,18 +260,20 @@ export function useInvites(projectId?: string) {
   };
 
   // Get pending invites count for a project
-  const getPendingInvitesCount = async (checkProjectId: string): Promise<number> => {
+  const getPendingInvitesCount = async (
+    checkProjectId: string
+  ): Promise<number> => {
     try {
       const { count, error: countError } = await supabase
-        .from('project_invites')
-        .select('*', { count: 'exact', head: true })
-        .eq('project_id', checkProjectId)
-        .eq('status', 'pending');
+        .from("project_invites")
+        .select("*", { count: "exact", head: true })
+        .eq("project_id", checkProjectId)
+        .eq("status", "pending");
 
       if (countError) throw countError;
       return count || 0;
     } catch (err: any) {
-      console.error('Error counting invites:', err);
+      console.error("Error counting invites:", err);
       return 0;
     }
   };
@@ -271,30 +283,30 @@ export function useInvites(projectId?: string) {
     if (!user?.id) return;
 
     const channel = supabase
-      .channel('project_invites_changes')
+      .channel("project_invites_changes")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'project_invites',
-          filter: `inviter_id=eq.${user.id}`
+          event: "*",
+          schema: "public",
+          table: "project_invites",
+          filter: `inviter_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('Invite change (sent):', payload);
+          console.log("Invite change (sent):", payload);
           fetchSentInvites();
         }
       )
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'project_invites',
-          filter: `invitee_email=eq.${user.email}`
+          event: "*",
+          schema: "public",
+          table: "project_invites",
+          filter: `invitee_email=eq.${user.email}`,
         },
         (payload) => {
-          console.log('Invite change (received):', payload);
+          console.log("Invite change (received):", payload);
           fetchReceivedInvites();
         }
       )
@@ -330,6 +342,6 @@ export function useInvites(projectId?: string) {
     refreshInvites: () => {
       fetchSentInvites();
       fetchReceivedInvites();
-    }
+    },
   };
 }

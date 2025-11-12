@@ -12,3 +12,5 @@ export const AdminPerformancePage: React.FC = () => {
     </div>
   );
 };
+
+export default AdminPerformancePage;

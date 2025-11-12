@@ -4,32 +4,37 @@
  * Supports transactional emails, templates, tracking
  */
 
-export type EmailProvider = 'resend' | 'sendgrid' | 'ses' | 'smtp';
+export type EmailProvider = "resend" | "sendgrid" | "ses" | "smtp";
 
-export type EmailLanguage = 'nl' | 'en' | 'pl';
+export type EmailLanguage = "nl" | "en" | "pl";
 
 export type EmailTemplateType =
-  | 'welcome'
-  | 'email_verification'
-  | 'password_reset'
-  | 'invoice'
-  | 'payment_success'
-  | 'payment_failed'
-  | 'subscription_activated'
-  | 'subscription_cancelled'
-  | 'subscription_expiring'
-  | 'worker_application'
-  | 'worker_hired'
-  | 'worker_rejected'
-  | 'appointment_booked'
-  | 'appointment_reminder'
-  | 'appointment_cancelled'
-  | 'certificate_expiring'
-  | 'certificate_expired'
-  | 'message_received'
-  | 'review_request'
-  | 'platform_update'
-  | 'security_alert';
+  | "welcome"
+  | "email_verification"
+  | "password_reset"
+  | "invoice"
+  | "payment_success"
+  | "payment_failed"
+  | "subscription_activated"
+  | "subscription_cancelled"
+  | "subscription_expiring"
+  | "worker_application"
+  | "worker_hired"
+  | "worker_rejected"
+  | "appointment_booked"
+  | "appointment_reminder"
+  | "appointment_cancelled"
+  | "certificate_expiring"
+  | "certificate_expired"
+  | "message_received"
+  | "review_request"
+  | "platform_update"
+  | "security_alert"
+  | "zzp_application_approved"
+  | "zzp_application_rejected"
+  | "zzp_test_scheduled"
+  | "zzp_test_reminder"
+  | "zzp_certificate_issued";
 
 export interface EmailAddress {
   email: string;
@@ -96,16 +101,16 @@ export interface EmailJob {
 }
 
 export type EmailJobStatus =
-  | 'pending'
-  | 'scheduled'
-  | 'sending'
-  | 'sent'
-  | 'delivered'
-  | 'opened'
-  | 'clicked'
-  | 'bounced'
-  | 'complained'
-  | 'failed';
+  | "pending"
+  | "scheduled"
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "opened"
+  | "clicked"
+  | "bounced"
+  | "complained"
+  | "failed";
 
 export interface EmailEvent {
   id: string;
@@ -119,13 +124,13 @@ export interface EmailEvent {
 }
 
 export type EmailEventType =
-  | 'sent'
-  | 'delivered'
-  | 'opened'
-  | 'clicked'
-  | 'bounced'
-  | 'complained'
-  | 'unsubscribed';
+  | "sent"
+  | "delivered"
+  | "opened"
+  | "clicked"
+  | "bounced"
+  | "complained"
+  | "unsubscribed";
 
 export interface EmailStats {
   totalSent: number;
@@ -199,6 +204,48 @@ export interface AppointmentReminderVariables {
   cancelLink: string;
 }
 
+export interface ZZPApplicationApprovedVariables {
+  workerName: string;
+  specializations: string;
+  nextSteps: string;
+  [key: string]: string | number;
+}
+
+export interface ZZPApplicationRejectedVariables {
+  workerName: string;
+  rejectionReason: string;
+  supportEmail: string;
+  [key: string]: string | number;
+}
+
+export interface ZZPTestScheduledVariables {
+  workerName: string;
+  testDate: string;
+  testTime: string;
+  location: string;
+  duration: string;
+  examiner: string;
+  [key: string]: string | number;
+}
+
+export interface ZZPTestReminderVariables {
+  workerName: string;
+  testDate: string;
+  testTime: string;
+  location: string;
+  hoursUntilTest: string;
+  [key: string]: string | number;
+}
+
+export interface ZZPCertificateIssuedVariables {
+  workerName: string;
+  certificateNumber: string;
+  issueDate: string;
+  specializations: string;
+  downloadLink: string;
+  [key: string]: string | number;
+}
+
 // Email service configuration
 export interface EmailServiceConfig {
   provider: EmailProvider;
@@ -222,7 +269,7 @@ export interface BatchEmailJob {
   totalRecipients: number;
   sentCount: number;
   failedCount: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   startedAt?: Date;
   completedAt?: Date;
   createdAt: Date;

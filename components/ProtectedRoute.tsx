@@ -1,5 +1,5 @@
-import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth, type UserRole } from '../contexts/AuthContext';
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth, type UserRole } from "../contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,18 +10,18 @@ interface ProtectedRouteProps {
 
 // WHY: paths that should be accessible without active subscription (e.g. payment/onboarding pages)
 const SUBSCRIPTION_WHITELIST_PATHS = [
-  '/employer/subscription',
-  '/employer/payment',
-  '/employer/checkout',
-  '/payment-success',
-  '/payment-cancel',
+  "/employer/subscription",
+  "/employer/payment",
+  "/employer/checkout",
+  "/payment-success",
+  "/payment-cancel",
 ];
 
 export const ProtectedRoute = ({
   children,
   requiredRole,
   requireAuth = true,
-  requireSubscription = false
+  requireSubscription = false,
 }: ProtectedRouteProps) => {
   const { user, isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
@@ -49,7 +49,9 @@ export const ProtectedRoute = ({
   }
 
   // Check if user has required role
-  const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  const allowedRoles = Array.isArray(requiredRole)
+    ? requiredRole
+    : [requiredRole];
   const hasRequiredRole = user && allowedRoles.includes(user.role);
 
   if (!hasRequiredRole) {
@@ -59,39 +61,46 @@ export const ProtectedRoute = ({
     }
 
     switch (user.role) {
-      case 'admin':
+      case "admin":
         return <Navigate to="/admin" replace />;
-      case 'employer':
+      case "employer":
         return <Navigate to="/employer" replace />;
-      case 'worker':
+      case "worker":
         return <Navigate to="/worker" replace />;
+      case "cleaning_company":
+        return <Navigate to="/cleaning/dashboard" replace />;
+      case "accountant":
+        return <Navigate to="/accountant/dashboard" replace />;
       default:
         return <Navigate to="/" replace />;
     }
   }
 
   // Check subscription requirement for employer role
-  if (requireSubscription && user?.role === 'employer') {
+  if (requireSubscription && user?.role === "employer") {
     // WHY: prevent redirect loop - whitelist paths that can be accessed without subscription
-    const isWhitelisted = SUBSCRIPTION_WHITELIST_PATHS.some(path => 
+    const isWhitelisted = SUBSCRIPTION_WHITELIST_PATHS.some((path) =>
       location.pathname.startsWith(path)
     );
-    
+
     if (isWhitelisted) {
-      console.log('[SUBS-GUARD] Path whitelisted, skipping subscription check:', location.pathname);
+      console.log(
+        "[SUBS-GUARD] Path whitelisted, skipping subscription check:",
+        location.pathname
+      );
       return <>{children}</>;
     }
-    
-    const hasActiveSubscription = user.subscription?.status === 'ACTIVE';
-    console.log('[SUBS-GUARD] Subscription check:', { 
+
+    const hasActiveSubscription = user.subscription?.status === "ACTIVE";
+    console.log("[SUBS-GUARD] Subscription check:", {
       has_subscription: !!user.subscription,
       status: user.subscription?.status,
       hasActive: hasActiveSubscription,
-      path: location.pathname 
+      path: location.pathname,
     });
-    
+
     if (!hasActiveSubscription) {
-      console.log('[SUBS-GUARD] Redirecting to subscription page');
+      console.log("[SUBS-GUARD] Redirecting to subscription page");
       // Redirect to subscription selection page
       return <Navigate to="/employer/subscription" replace />;
     }
@@ -117,10 +126,22 @@ export const WorkerRoute = ({ children }: { children: React.ReactNode }) => (
   <ProtectedRoute requiredRole="worker">{children}</ProtectedRoute>
 );
 
+// Helper component for cleaning company-only routes
+export const CleaningRoute = ({ children }: { children: React.ReactNode }) => (
+  <ProtectedRoute requiredRole="cleaning_company">{children}</ProtectedRoute>
+);
+
+// Helper component for accountant-only routes
+export const AccountantRoute = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => <ProtectedRoute requiredRole="accountant">{children}</ProtectedRoute>;
+
 // Helper component for routes accessible by multiple roles
 export const MultiRoleRoute = ({
   children,
-  roles
+  roles,
 }: {
   children: React.ReactNode;
   roles: UserRole[];
