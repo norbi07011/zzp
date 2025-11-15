@@ -663,74 +663,15 @@ export const AdminDashboard: React.FC = () => {
       color: "success" as const,
       stats: { label: "", value: "0", trend: "" },
     },
-    {
-      title: "Email Marketing",
-      description: "Campaigns, templates, newsletters, automation",
-      path: "/admin/email-marketing",
-      icon: "📧",
-      color: "premium" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
-    {
-      title: "SEO & Meta Tags",
-      description: "Meta descriptions, keywords, sitemaps, redirects",
-      path: "/admin/seo",
-      icon: "🔍",
-      color: "cyber" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
-    {
-      title: "Blog & Content CMS",
-      description: "Articles, categories, authors, media library",
-      path: "/admin/blog",
-      icon: "✍️",
-      color: "success" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
-    {
-      title: "Performance Dashboard",
-      description: "Core Web Vitals, bundle analysis, cache optimization",
-      path: "/admin/performance",
-      icon: "⚡",
-      color: "cyber" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
-    {
-      title: "Advanced Search & Filtering",
-      description:
-        "Enterprise search with analytics, real-time filtering, and query management",
-      path: "/admin/search",
-      icon: "🔍",
-      color: "premium" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
-    {
-      title: "API Integration & Automation",
-      description:
-        "API management, workflow automation, third-party integrations, and security",
-      path: "/admin/api-automation",
-      icon: "🔗",
-      color: "cyber" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
-    {
-      title: "Security & Compliance",
-      description:
-        "GDPR compliance, security headers, penetration testing, audit logs, and enterprise security",
-      path: "/admin/security-compliance",
-      icon: "🛡️",
-      color: "premium" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
-    {
-      title: "Performance Optimization",
-      description:
-        "Performance monitoring, scalability tracking, production readiness, cost optimization, and real-time alerts",
-      path: "/admin/performance-optimization",
-      icon: "⚡",
-      color: "premium" as const,
-      stats: { label: "", value: "0", trend: "" },
-    },
+    // ❌ REMOVED 8 ENTERPRISE CARDS:
+    // - Email Marketing (/admin/email-marketing)
+    // - SEO & Meta Tags (/admin/seo)
+    // - Blog & Content CMS (/admin/blog)
+    // - Performance Dashboard (/admin/performance)
+    // - Advanced Search & Filtering (/admin/search)
+    // - API Integration & Automation (/admin/api-automation)
+    // - Security & Compliance (/admin/security-compliance)
+    // - Performance Optimization (/admin/performance-optimization)
     {
       title: "Ustawienia Systemu",
       description: "Configuration, API keys, integrations, permissions",

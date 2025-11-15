@@ -60,12 +60,8 @@ const MessagesManager = lazy(() => import("./pages/Admin/MessagesManager"));
 const BillingManager = lazy(() => import("./pages/Admin/BillingManager"));
 // ❌ REMOVED: AnalyticsManager (DUPLICATE - using DataAnalyticsPage instead)
 const SecurityManager = lazy(() => import("./pages/Admin/SecurityManager"));
-const SEOManager = lazy(() => import("./pages/Admin/SEOManager"));
+// ❌ REMOVED ENTERPRISE: SEOManager, EmailMarketingManager, BlogCMSManager
 const DatabaseManager = lazy(() => import("./pages/Admin/DatabaseManager"));
-const EmailMarketingManager = lazy(
-  () => import("./pages/Admin/EmailMarketingManager")
-);
-const BlogCMSManager = lazy(() => import("./pages/Admin/BlogCMSManager"));
 const AppointmentsManager = lazy(
   () => import("./pages/Admin/AppointmentsManager")
 );
@@ -88,21 +84,8 @@ const NotificationsManager = lazy(
   () => import("./pages/Admin/NotificationsManager")
 );
 const ReportsManager = lazy(() => import("./pages/Admin/ReportsManager"));
-const AdminPerformancePage = lazy(
-  () => import("./pages/Admin/PerformancePage")
-);
-const AdvancedSearchPage = lazy(
-  () => import("./pages/Admin/AdvancedSearchPage")
-);
+// ❌ REMOVED ENTERPRISE: AdminPerformancePage, AdvancedSearchPage, APIIntegrationAutomationPage, SecurityCompliancePage
 const DataAnalyticsPage = lazy(() => import("./pages/Admin/DataAnalyticsPage"));
-const APIIntegrationAutomationPage = lazy(
-  () => import("./pages/Admin/APIIntegrationAutomationPage")
-);
-const SecurityCompliancePage = lazy(() =>
-  import("./pages/Admin/SecurityCompliancePage").then((m) => ({
-    default: m.SecurityCompliancePage,
-  }))
-);
 // ❌ REMOVED: SystemMonitoringPage - file does not exist
 // const SystemMonitoringPage = lazy(
 //   () => import("./src/pages/admin/SystemMonitoringPage")
@@ -364,13 +347,8 @@ function App() {
                         <Route path="billing" element={<BillingManager />} />
                         {/* ❌ REMOVED: analytics → AnalyticsManager (DUPLICATE - using DataAnalyticsPage below) */}
                         <Route path="security" element={<SecurityManager />} />
-                        <Route path="seo" element={<SEOManager />} />
+                        {/* ❌ REMOVED ENTERPRISE ROUTES: seo, email-marketing, blog */}
                         <Route path="database" element={<DatabaseManager />} />
-                        <Route
-                          path="email-marketing"
-                          element={<EmailMarketingManager />}
-                        />
-                        <Route path="blog" element={<BlogCMSManager />} />
                         <Route
                           path="appointments"
                           element={<AppointmentsManager />}
@@ -404,30 +382,10 @@ function App() {
                           path="certificates"
                           element={<CertificatesManager />}
                         />
-                        <Route
-                          path="performance"
-                          element={<AdminPerformancePage />}
-                        />
-                        <Route
-                          path="performance-optimization"
-                          element={<AdminPerformancePage />}
-                        />
-                        <Route
-                          path="scalability-optimization"
-                          element={<AdminPerformancePage />}
-                        />
-                        <Route path="search" element={<AdvancedSearchPage />} />
+                        {/* ❌ REMOVED ENTERPRISE ROUTES: performance, performance-optimization, scalability-optimization, search, api-automation, security-compliance */}
                         <Route
                           path="analytics"
                           element={<DataAnalyticsPage />}
-                        />
-                        <Route
-                          path="api-automation"
-                          element={<APIIntegrationAutomationPage />}
-                        />
-                        <Route
-                          path="security-compliance"
-                          element={<SecurityCompliancePage />}
                         />
                         {/* ❌ REMOVED: monitoring and backup routes - files do not exist */}
                         {/* <Route path="monitoring" element={<SystemMonitoringPage />} /> */}
