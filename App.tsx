@@ -49,12 +49,7 @@ const AdminDashboard = lazy(() =>
 // - AdminAppointmentsPage (OLD) → use AppointmentsManager (NEW)
 
 const WorkersManager = lazy(() => import("./pages/Admin/WorkersManager"));
-// ❌ REMOVED: EmployersManager - do przebudowy
-// const EmployersManager = lazy(() =>
-//   import("./pages/Admin/EmployersManager").then((m) => ({
-//     default: m.EmployersManager,
-//   }))
-// );
+const EmployersManager = lazy(() => import("./pages/Admin/EmployersManager"));
 const MediaManager = lazy(() => import("./pages/Admin/MediaManager"));
 const MessagesManager = lazy(() => import("./pages/Admin/MessagesManager"));
 const BillingManager = lazy(() => import("./pages/Admin/BillingManager"));
@@ -356,9 +351,9 @@ function App() {
                         <Route path="scheduler" element={<TestScheduler />} />
                         {/* TestSlotsManager archived - use scheduler instead */}
 
-                        {/* ✅ ENTERPRISE MANAGEMENT PANELS (src/pages/admin/) */}
+                        {/* ✅ MANAGEMENT PANELS */}
                         <Route path="workers" element={<WorkersManager />} />
-                        {/* ❌ REMOVED: employers route - moduł do przebudowy */}
+                        <Route path="employers" element={<EmployersManager />} />
                         <Route
                           path="accountants"
                           element={<AccountantsManager />}
