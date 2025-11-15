@@ -111,11 +111,21 @@
 }
 
 .dark-theme .bg-gradient-hero {
-  background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 50%, #0a0e1a 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #0a0e1a 0%,
+    #1a1f35 50%,
+    #0a0e1a 100%
+  ) !important;
 }
 
 .light-theme .bg-gradient-hero {
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 50%, #93c5fd 100%) !important;
+  background: linear-gradient(
+    135deg,
+    #dbeafe 0%,
+    #bfdbfe 50%,
+    #93c5fd 100%
+  ) !important;
 }
 
 /* Cards and borders */
@@ -170,5 +180,435 @@
 
 /* Smooth transitions */
 * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  transition: background-color 0.3s ease, color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+/* SVG Rotating Rings - Professional 3D Effect */
+.rotating-ring-1 {
+  animation: rotate-ring-1 25s linear infinite;
+  transform-origin: center;
+  stroke-dasharray: 2010;
+  stroke-dashoffset: 0;
+}
+
+.rotating-ring-2 {
+  animation: rotate-ring-2 35s linear infinite reverse;
+  transform-origin: center;
+  stroke-dasharray: 1507;
+  stroke-dashoffset: 0;
+}
+
+.rotating-ring-3 {
+  animation: rotate-ring-3 45s linear infinite;
+  transform-origin: center;
+  stroke-dasharray: 1005;
+  stroke-dashoffset: 0;
+}
+
+@keyframes rotate-ring-1 {
+  0% {
+    transform: rotate(0deg) scale(1);
+    stroke-dashoffset: 0;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.05);
+    stroke-dashoffset: -500;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    stroke-dashoffset: -1000;
+  }
+}
+
+@keyframes rotate-ring-2 {
+  0% {
+    transform: rotate(0deg) scale(1);
+    stroke-dashoffset: 0;
+  }
+  50% {
+    transform: rotate(-180deg) scale(0.95);
+    stroke-dashoffset: 400;
+  }
+  100% {
+    transform: rotate(-360deg) scale(1);
+    stroke-dashoffset: 800;
+  }
+}
+
+@keyframes rotate-ring-3 {
+  0% {
+    transform: rotate(0deg) scale(1);
+    stroke-dashoffset: 0;
+  }
+  50% {
+    transform: rotate(180deg) scale(1.1);
+    stroke-dashoffset: -300;
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+    stroke-dashoffset: -600;
+  }
+}
+
+/* Pulsating Orbs - Slower animations */
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes pulse-slower {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.25;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes pulse-slowest {
+  0%,
+  100% {
+    opacity: 0.1;
+    transform: scale(1) translate(-50%, -50%);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.2) translate(-50%, -50%);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 8s ease-in-out infinite;
+}
+
+.animate-pulse-slower {
+  animation: pulse-slower 10s ease-in-out infinite;
+}
+
+.animate-pulse-slowest {
+  animation: pulse-slowest 12s ease-in-out infinite;
+}
+
+/* Enhanced Animated Waves - Logo color scheme: Gray → Blue → Cyan */
+.wave {
+  position: absolute;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(96, 165, 250, 0.2),
+    transparent
+  );
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.wave-1 {
+  animation: wave-float-1 20s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(96, 165, 250, 0.25),
+    rgba(34, 211, 238, 0.2),
+    transparent
+  );
+  animation-delay: 0s;
+  top: -50%;
+  left: -50%;
+}
+
+.wave-2 {
+  animation: wave-float-2 25s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(59, 130, 246, 0.2),
+    rgba(100, 116, 139, 0.15),
+    transparent
+  );
+  animation-delay: -7s;
+  top: -30%;
+  left: -40%;
+}
+
+.wave-3 {
+  animation: wave-float-3 30s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(148, 163, 184, 0.15),
+    rgba(34, 211, 238, 0.12),
+    transparent
+  );
+  animation-delay: -14s;
+  top: -20%;
+  left: -30%;
+}
+
+@keyframes wave-float-1 {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0) rotate(-5deg) scaleY(1);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateX(-15%) translateY(-20%) rotate(-2deg) scaleY(1.15);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateX(-30%) translateY(0) rotate(2deg) scaleY(0.9);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translateX(-15%) translateY(20%) rotate(-3deg) scaleY(1.1);
+    opacity: 0.35;
+  }
+}
+
+@keyframes wave-float-2 {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0) rotate(3deg) scaleY(1);
+    opacity: 0.25;
+  }
+  25% {
+    transform: translateX(-20%) translateY(15%) rotate(1deg) scaleY(1.1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateX(-40%) translateY(0) rotate(-2deg) scaleY(0.95);
+    opacity: 0.25;
+  }
+  75% {
+    transform: translateX(-20%) translateY(-15%) rotate(2deg) scaleY(1.05);
+    opacity: 0.28;
+  }
+}
+
+@keyframes wave-float-3 {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0) rotate(-4deg) scaleY(1);
+    opacity: 0.2;
+  }
+  25% {
+    transform: translateX(-25%) translateY(-10%) rotate(-1deg) scaleY(1.2);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateX(-50%) translateY(0) rotate(3deg) scaleY(0.85);
+    opacity: 0.2;
+  }
+  75% {
+    transform: translateX(-25%) translateY(10%) rotate(-2deg) scaleY(1.15);
+    opacity: 0.22;
+  }
+}
+
+/* Floating Orb Animations */
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translate(-30px, -40px) scale(1.1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translate(-60px, 0) scale(1.05);
+    opacity: 0.3;
+  }
+  75% {
+    transform: translate(-30px, 40px) scale(1.15);
+    opacity: 0.32;
+  }
+}
+
+@keyframes float-slower {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.25;
+  }
+  25% {
+    transform: translate(40px, -30px) scale(1.15);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translate(80px, 0) scale(1.1);
+    opacity: 0.25;
+  }
+  75% {
+    transform: translate(40px, 30px) scale(1.2);
+    opacity: 0.28;
+  }
+}
+
+@keyframes float-slowest {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.2;
+  }
+  25% {
+    transform: translate(calc(-50% - 20px), calc(-50% - 30px)) scale(1.2);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translate(calc(-50% - 40px), -50%) scale(1.15);
+    opacity: 0.2;
+  }
+  75% {
+    transform: translate(calc(-50% - 20px), calc(-50% + 30px)) scale(1.25);
+    opacity: 0.22;
+  }
+}
+
+.animate-float-slow {
+  animation: float-slow 15s ease-in-out infinite;
+}
+
+.animate-float-slower {
+  animation: float-slower 18s ease-in-out infinite;
+}
+
+.animate-float-slowest {
+  animation: float-slowest 22s ease-in-out infinite;
+}
+.wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(0, 217, 255, 0.15),
+    rgba(139, 92, 246, 0.1),
+    transparent
+  );
+  animation: wave-animation 20s ease-in-out infinite;
+  border-radius: 50%;
+}
+
+.wave1 {
+  animation-delay: 0s;
+  opacity: 0.6;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(6, 182, 212, 0.2),
+    transparent
+  );
+}
+
+.wave2 {
+  animation-delay: -7s;
+  opacity: 0.5;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(59, 130, 246, 0.15),
+    transparent
+  );
+}
+
+.wave3 {
+  animation-delay: -14s;
+  opacity: 0.4;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(139, 92, 246, 0.15),
+    transparent
+  );
+}
+
+@keyframes wave-animation {
+  0%,
+  100% {
+    transform: translateX(0) translateY(0) rotate(-3deg) scaleY(1);
+  }
+  25% {
+    transform: translateX(-15%) translateY(-15%) rotate(-1deg) scaleY(1.1);
+  }
+  50% {
+    transform: translateX(-30%) translateY(0) rotate(1deg) scaleY(0.9);
+  }
+  75% {
+    transform: translateX(-15%) translateY(15%) rotate(-2deg) scaleY(1.05);
+  }
+}
+
+/* SVG Rotating Circles */
+.rotating-circle-1 {
+  animation: rotate-clockwise 30s linear infinite,
+    pulse-scale 8s ease-in-out infinite;
+  transform-origin: center;
+  filter: blur(60px);
+}
+
+.rotating-circle-2 {
+  animation: rotate-counter-clockwise 40s linear infinite,
+    pulse-scale 10s ease-in-out infinite;
+  transform-origin: center;
+  filter: blur(80px);
+  animation-delay: -5s;
+}
+
+.rotating-circle-3 {
+  animation: rotate-clockwise 50s linear infinite,
+    pulse-scale 12s ease-in-out infinite;
+  transform-origin: center;
+  filter: blur(70px);
+  animation-delay: -10s;
+}
+
+@keyframes rotate-clockwise {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  to {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+@keyframes rotate-counter-clockwise {
+  from {
+    transform: rotate(0deg) scale(1);
+  }
+  to {
+    transform: rotate(-360deg) scale(1);
+  }
+}
+
+@keyframes pulse-scale {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.1) rotate(90deg);
+  }
+  50% {
+    transform: scale(0.95) rotate(180deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(270deg);
+  }
 }

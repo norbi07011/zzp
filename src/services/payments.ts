@@ -1,339 +1,445 @@
-// @ts-nocheck
-/**
- * Payments Service - Supabase Integration
- * Manages transactions, invoices, subscriptions, refunds
- * 
- * Database Schema (payments table):
- * - id: uuid (primary key)
- * - user_id: uuid (payer)
- * - company_id: uuid (if company payment)
- * - amount: numeric (payment amount)
- * - currency: text (EUR, PLN, USD)
- * - status: enum (pending, completed, failed, refunded)
- * - payment_method: enum (card, bank_transfer, paypal, stripe)
- * - transaction_id: text (external payment ID)
- * - description: text
- * - invoice_number: text
- * - invoice_url: text
- * - payment_date: timestamp
- * - due_date: timestamp
- * - refund_amount: numeric
- * - refund_reason: text
- * - metadata: jsonb (extra data)
- * - created_at, updated_at: timestamp
- */
+// =====================================================
+// PAYMENTS SERVICE - Unified Payment Management
+// =====================================================
+// Handles: worker subscriptions, employer subscriptions,
+// worker earnings, invoice payments, refunds
 
-import { supabase } from '@/lib/supabase';
+// @ts-nocheck - Temporary: Waiting for Supabase types regeneration
+import { supabase } from "../lib/supabase";
 
-export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled';
-export type PaymentMethod = 'card' | 'bank_transfer' | 'paypal' | 'stripe' | 'cash';
-export type Currency = 'EUR' | 'PLN' | 'USD' | 'GBP';
+// =====================================================
+// TYPES
+// =====================================================
+
+export type PaymentType =
+  | "worker_subscription"
+  | "employer_subscription"
+  | "worker_earning"
+  | "invoice_payment"
+  | "refund";
+
+export type PaymentStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "refunded"
+  | "cancelled";
+
+export type PaymentMethod =
+  | "stripe_card"
+  | "stripe_ideal"
+  | "stripe_sepa"
+  | "bank_transfer"
+  | "cash"
+  | "paypal"
+  | "other";
 
 export interface Payment {
   id: string;
   user_id: string;
-  company_id?: string;
+  profile_id?: string;
+
+  // Payment details
+  payment_type: PaymentType;
   amount: number;
-  currency: Currency;
+  currency: string;
   status: PaymentStatus;
-  payment_method: PaymentMethod;
-  transaction_id?: string;
-  description?: string;
-  invoice_number?: string;
-  invoice_url?: string;
-  payment_date?: string;
-  due_date?: string;
-  refund_amount?: number;
-  refund_reason?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-  updated_at: string;
-  // Joined data
-  user?: {
-    id: string;
-    email: string;
-    full_name: string;
-  };
-  company?: {
-    id: string;
-    company_name: string;
-  };
+  payment_method?: PaymentMethod;
+
+  // Stripe
+  stripe_payment_intent_id?: string;
 }
 
 export interface PaymentStats {
-  total: number;
-  completed: number;
-  pending: number;
-  failed: number;
-  refunded: number;
-  totalRevenue: number;
-  totalRefunded: number;
-  revenueThisMonth: number;
-  revenueThisWeek: number;
-  averagePayment: number;
+  total_revenue: number; // Całkowity przychód (completed)
+  pending_amount: number; // Oczekujące
+  refunded_amount: number; // Zwroty
+  total_count: number; // Wszystkie płatności
+
+  // Breakdown by type
+  worker_subscriptions: number;
+  employer_subscriptions: number;
+  worker_earnings: number;
+  invoice_payments: number;
+
+  // Breakdown by status
+  completed_count: number;
+  pending_count: number;
+  failed_count: number;
+  refunded_count: number;
+
+  // Recent trends
+  revenue_this_month: number;
+  revenue_last_month: number;
+  payments_this_month: number;
+  payments_last_month: number;
 }
 
-// Fetch all payments
-export async function fetchAllPayments() {
-  const { data, error } = await supabase
-    .from('payments')
-    .select(`
-      *,
-      user:user_id (id, email, full_name),
-      company:company_id (id, company_name)
-    `)
-    .order('created_at', { ascending: false });
+// =====================================================
+// FETCH OPERATIONS
+// =====================================================
 
-  if (error) throw error;
-  return data as Payment[];
+/**
+ * Fetch all payments (admin only)
+ */
+export async function fetchAllPayments(): Promise<Payment[]> {
+  const { data, error } = await supabase
+    .from("payments")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching payments:", error);
+    throw new Error(`Błąd pobierania płatności: ${error.message}`);
+  }
+
+  return data || [];
 }
 
-// Fetch payment by ID
-export async function fetchPaymentById(id: string) {
+/**
+ * Fetch payments by user ID
+ */
+export async function fetchPaymentsByUser(userId: string): Promise<Payment[]> {
   const { data, error } = await supabase
-    .from('payments')
-    .select(`
-      *,
-      user:user_id (id, email, full_name),
-      company:company_id (id, company_name)
-    `)
-    .eq('id', id)
-    .single();
+    .from("payments")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data as Payment;
+  if (error) {
+    console.error("Error fetching user payments:", error);
+    throw new Error(`Błąd pobierania płatności użytkownika: ${error.message}`);
+  }
+
+  return data || [];
 }
 
-// Fetch payments by user
-export async function fetchPaymentsByUser(userId: string) {
+/**
+ * Fetch payments by company (for employers)
+ */
+export async function fetchPaymentsByCompany(
+  companyId: string
+): Promise<Payment[]> {
+  // Assuming company_id is stored in metadata
   const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
+    .from("payments")
+    .select("*")
+    .contains("metadata", { company_id: companyId })
+    .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data as Payment[];
+  if (error) {
+    console.error("Error fetching company payments:", error);
+    throw new Error(`Błąd pobierania płatności firmy: ${error.message}`);
+  }
+
+  return data || [];
 }
 
-// Fetch payments by company
-export async function fetchPaymentsByCompany(companyId: string) {
+/**
+ * Search payments by query (invoice number, user email, description)
+ */
+export async function searchPayments(query: string): Promise<Payment[]> {
   const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('company_id', companyId)
-    .order('created_at', { ascending: false });
+    .from("payments")
+    .select("*")
+    .or(
+      `invoice_number.ilike.%${query}%,description.ilike.%${query}%,stripe_payment_intent_id.ilike.%${query}%`
+    )
+    .order("created_at", { ascending: false });
 
-  if (error) throw error;
-  return data as Payment[];
+  if (error) {
+    console.error("Error searching payments:", error);
+    throw new Error(`Błąd wyszukiwania płatności: ${error.message}`);
+  }
+
+  return data || [];
 }
 
-// Fetch payments by status
-export async function fetchPaymentsByStatus(status: PaymentStatus) {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .eq('status', status)
-    .order('created_at', { ascending: false });
+/**
+ * Get payment statistics (for admin dashboard)
+ */
+export async function getPaymentStats(): Promise<PaymentStats> {
+  try {
+    // Fetch all payments
+    const { data: allPayments, error: allError } = await supabase
+      .from("payments")
+      .select("amount, status, payment_type, created_at, refund_amount");
 
-  if (error) throw error;
-  return data as Payment[];
+    if (allError) throw allError;
+
+    const payments = allPayments || [];
+
+    // Calculate totals
+    const completedPayments = payments.filter((p) => p.status === "completed");
+    const pendingPayments = payments.filter((p) => p.status === "pending");
+    const refundedPayments = payments.filter((p) => p.status === "refunded");
+
+    const total_revenue = completedPayments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0
+    );
+    const pending_amount = pendingPayments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0
+    );
+    const refunded_amount = refundedPayments.reduce(
+      (sum, p) => sum + Number(p.refund_amount || 0),
+      0
+    );
+
+    // Breakdown by type
+    const worker_subscriptions = completedPayments
+      .filter((p) => p.payment_type === "worker_subscription")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const employer_subscriptions = completedPayments
+      .filter((p) => p.payment_type === "employer_subscription")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const worker_earnings = completedPayments
+      .filter((p) => p.payment_type === "worker_earning")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+    const invoice_payments = completedPayments
+      .filter((p) => p.payment_type === "invoice_payment")
+      .reduce((sum, p) => sum + Number(p.amount), 0);
+
+    // This month vs last month
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    const thisMonthPayments = completedPayments.filter(
+      (p) => new Date(p.created_at) >= thisMonthStart
+    );
+    const lastMonthPayments = completedPayments.filter(
+      (p) =>
+        new Date(p.created_at) >= lastMonthStart &&
+        new Date(p.created_at) <= lastMonthEnd
+    );
+
+    const revenue_this_month = thisMonthPayments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0
+    );
+    const revenue_last_month = lastMonthPayments.reduce(
+      (sum, p) => sum + Number(p.amount),
+      0
+    );
+
+    return {
+      total_revenue,
+      pending_amount,
+      refunded_amount,
+      total_count: payments.length,
+
+      worker_subscriptions,
+      employer_subscriptions,
+      worker_earnings,
+      invoice_payments,
+
+      completed_count: completedPayments.length,
+      pending_count: pendingPayments.length,
+      failed_count: payments.filter((p) => p.status === "failed").length,
+      refunded_count: refundedPayments.length,
+
+      revenue_this_month,
+      revenue_last_month,
+      payments_this_month: thisMonthPayments.length,
+      payments_last_month: lastMonthPayments.length,
+    };
+  } catch (error: any) {
+    console.error("Error calculating payment stats:", error);
+    throw new Error(`Błąd obliczania statystyk: ${error.message}`);
+  }
 }
 
-// Create new payment
-export async function createPayment(paymentData: Partial<Payment>) {
-  const invoiceNumber = `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+// =====================================================
+// CREATE / UPDATE OPERATIONS
+// =====================================================
 
+/**
+ * Create a new payment
+ */
+export async function createPayment(
+  paymentData: Partial<Payment>
+): Promise<Payment> {
   const { data, error } = await supabase
-    .from('payments')
-    .insert([{
-      ...paymentData,
-      invoice_number: invoiceNumber,
-      status: paymentData.status || 'pending'
-    }])
+    .from("payments")
+    .insert([
+      {
+        ...paymentData,
+        status: paymentData.status || "pending",
+        currency: paymentData.currency || "EUR",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ])
     .select()
     .single();
 
-  if (error) throw error;
-  return data as Payment;
+  if (error) {
+    console.error("Error creating payment:", error);
+    throw new Error(`Błąd tworzenia płatności: ${error.message}`);
+  }
+
+  return data;
 }
 
-// Update payment
-export async function updatePayment(id: string, updates: Partial<Payment>) {
+/**
+ * Update an existing payment
+ */
+export async function updatePayment(
+  id: string,
+  updates: Partial<Payment>
+): Promise<Payment> {
   const { data, error } = await supabase
-    .from('payments')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Payment;
-}
-
-// Delete payment
-export async function deletePayment(id: string) {
-  const { error } = await supabase
-    .from('payments')
-    .delete()
-    .eq('id', id);
-
-  if (error) throw error;
-  return true;
-}
-
-// Complete payment
-export async function completePayment(id: string, transactionId?: string) {
-  const { data, error } = await supabase
-    .from('payments')
-    .update({ 
-      status: 'completed',
-      payment_date: new Date().toISOString(),
-      transaction_id: transactionId
+    .from("payments")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
     })
-    .eq('id', id)
+    .eq("id", id)
     .select()
     .single();
 
-  if (error) throw error;
-  return data as Payment;
+  if (error) {
+    console.error("Error updating payment:", error);
+    throw new Error(`Błąd aktualizacji płatności: ${error.message}`);
+  }
+
+  return data;
 }
 
-// Fail payment
-export async function failPayment(id: string, reason?: string) {
-  const { data, error } = await supabase
-    .from('payments')
-    .update({ 
-      status: 'failed',
-      metadata: { failure_reason: reason }
-    })
-    .eq('id', id)
-    .select()
-    .single();
+/**
+ * Delete a payment
+ */
+export async function deletePayment(id: string): Promise<void> {
+  const { error } = await supabase.from("payments").delete().eq("id", id);
 
-  if (error) throw error;
-  return data as Payment;
+  if (error) {
+    console.error("Error deleting payment:", error);
+    throw new Error(`Błąd usuwania płatności: ${error.message}`);
+  }
 }
 
-// Refund payment
-export async function refundPayment(id: string, amount: number, reason: string) {
-  const { data, error } = await supabase
-    .from('payments')
-    .update({ 
-      status: 'refunded',
-      refund_amount: amount,
-      refund_reason: reason
-    })
-    .eq('id', id)
-    .select()
-    .single();
+// =====================================================
+// PAYMENT LIFECYCLE OPERATIONS
+// =====================================================
 
-  if (error) throw error;
-  return data as Payment;
+/**
+ * Mark payment as completed
+ */
+export async function completePayment(
+  id: string,
+  transactionId: string
+): Promise<Payment> {
+  return updatePayment(id, {
+    status: "completed",
+    stripe_payment_intent_id: transactionId,
+    completed_at: new Date().toISOString(),
+    payment_date: new Date().toISOString(),
+  });
 }
 
-// Generate invoice
-export async function generateInvoice(paymentId: string) {
-  // This would integrate with invoice generation service
-  const invoiceUrl = `https://invoices.example.com/${paymentId}.pdf`;
-  
-  const { data, error } = await supabase
-    .from('payments')
-    .update({ invoice_url: invoiceUrl })
-    .eq('id', paymentId)
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data as Payment;
+/**
+ * Mark payment as failed
+ */
+export async function failPayment(
+  id: string,
+  reason: string
+): Promise<Payment> {
+  return updatePayment(id, {
+    status: "failed",
+    failure_reason: reason,
+    failed_at: new Date().toISOString(),
+  });
 }
 
-// Get payment statistics
-export async function getPaymentStats() {
-  const { data: payments, error } = await supabase
-    .from('payments')
-    .select('*');
+/**
+ * Process a refund
+ */
+export async function refundPayment(
+  id: string,
+  amount: number,
+  reason: string
+): Promise<Payment> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (error) throw error;
-
-  const stats: PaymentStats = {
-    total: payments.length,
-    completed: payments.filter(p => p.status === 'completed').length,
-    pending: payments.filter(p => p.status === 'pending').length,
-    failed: payments.filter(p => p.status === 'failed').length,
-    refunded: payments.filter(p => p.status === 'refunded').length,
-    totalRevenue: 0,
-    totalRefunded: 0,
-    revenueThisMonth: 0,
-    revenueThisWeek: 0,
-    averagePayment: 0
-  };
-
-  const completedPayments = payments.filter(p => p.status === 'completed');
-  stats.totalRevenue = completedPayments.reduce((sum, p) => sum + p.amount, 0);
-  stats.totalRefunded = payments
-    .filter(p => p.status === 'refunded')
-    .reduce((sum, p) => sum + (p.refund_amount || 0), 0);
-
-  // Calculate time-based revenue
-  const today = new Date();
-  const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-  stats.revenueThisWeek = completedPayments
-    .filter(p => new Date(p.created_at) >= weekAgo)
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  stats.revenueThisMonth = completedPayments
-    .filter(p => new Date(p.created_at) >= monthAgo)
-    .reduce((sum, p) => sum + p.amount, 0);
-
-  stats.averagePayment = completedPayments.length > 0
-    ? stats.totalRevenue / completedPayments.length
-    : 0;
-
-  return stats;
+  return updatePayment(id, {
+    status: "refunded",
+    refund_amount: amount,
+    refund_reason: reason,
+    refunded_at: new Date().toISOString(),
+    refunded_by: user?.id,
+  });
 }
 
-// Search payments
-export async function searchPayments(query: string) {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('*')
-    .or(`invoice_number.ilike.%${query}%,transaction_id.ilike.%${query}%,description.ilike.%${query}%`)
-    .order('created_at', { ascending: false });
+/**
+ * Generate invoice for payment
+ */
+export async function generateInvoice(id: string): Promise<Payment> {
+  // Generate invoice number (simple format: INV-YYYYMMDD-XXXX)
+  const now = new Date();
+  const dateStr = now.toISOString().split("T")[0].replace(/-/g, "");
+  const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const invoiceNumber = `INV-${dateStr}-${randomStr}`;
 
-  if (error) throw error;
-  return data as Payment[];
+  return updatePayment(id, {
+    invoice_generated: true,
+    invoice_number: invoiceNumber,
+    // invoice_url would be generated by separate invoice service
+  });
 }
 
-// Get revenue by date range
-export async function getRevenueByDateRange(startDate: string, endDate: string) {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('amount, payment_date, currency')
-    .eq('status', 'completed')
-    .gte('payment_date', startDate)
-    .lte('payment_date', endDate)
-    .order('payment_date', { ascending: true });
+// =====================================================
+// EXPORT OPERATIONS
+// =====================================================
 
-  if (error) throw error;
+/**
+ * Export payments to CSV
+ */
+export async function exportPaymentsToCSV(): Promise<Blob> {
+  const payments = await fetchAllPayments();
 
-  return data.reduce((acc, payment) => {
-    const date = payment.payment_date.split('T')[0];
-    if (!acc[date]) acc[date] = 0;
-    acc[date] += payment.amount;
-    return acc;
-  }, {} as Record<string, number>);
+  const headers = [
+    "ID",
+    "Data",
+    "Typ",
+    "Kwota",
+    "Waluta",
+    "Status",
+    "Metoda",
+    "Opis",
+  ];
+
+  const rows = payments.map((p) => [
+    p.id,
+    new Date(p.created_at).toLocaleString("pl-PL"),
+    p.payment_type,
+    p.amount.toFixed(2),
+    p.currency,
+    p.status,
+    p.payment_method || "N/A",
+    p.description || "",
+  ]);
+
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) => row.join(",")),
+  ].join("\n");
+
+  return new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
 }
 
 // Get top paying customers
 export async function getTopPayingCustomers(limit: number = 10) {
   const { data, error } = await supabase
-    .from('payments')
-    .select('user_id, amount, user:user_id (email, full_name)')
-    .eq('status', 'completed')
-    .order('amount', { ascending: false })
+    .from("payments")
+    .select("user_id, amount, user:user_id (email, full_name)")
+    .eq("status", "completed")
+    .order("amount", { ascending: false })
     .limit(limit);
 
   if (error) throw error;
@@ -341,11 +447,14 @@ export async function getTopPayingCustomers(limit: number = 10) {
 }
 
 // Bulk process payments
-export async function bulkProcessPayments(paymentIds: string[], status: PaymentStatus) {
+export async function bulkProcessPayments(
+  paymentIds: string[],
+  status: PaymentStatus
+) {
   const { data, error } = await supabase
-    .from('payments')
+    .from("payments")
     .update({ status, payment_date: new Date().toISOString() })
-    .in('id', paymentIds)
+    .in("id", paymentIds)
     .select();
 
   if (error) throw error;

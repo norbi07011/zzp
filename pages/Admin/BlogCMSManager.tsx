@@ -665,3 +665,6 @@ export const BlogCMSManager = () => {
     </div>
   );
 }
+
+// Export as default for lazy loading
+export default BlogCMSManager;

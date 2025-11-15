@@ -718,3 +718,6 @@ export const SEOManager = () => {
     </div>
   );
 }
+
+// Export as default for lazy loading
+export default SEOManager;

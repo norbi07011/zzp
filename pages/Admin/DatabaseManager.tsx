@@ -354,3 +354,6 @@ export const DatabaseManager = () => {
     </div>
   );
 };
+
+// Export as default for lazy loading
+export default DatabaseManager;

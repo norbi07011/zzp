@@ -24,6 +24,7 @@ import { RegisterWorkerPage } from "./pages/public/RegisterWorkerPage";
 import { RegisterAccountantPage } from "./pages/public/RegisterAccountantPage";
 import { RegisterCleaningPage } from "./pages/public/RegisterCleaningPage";
 import { LegalPage } from "./pages/public/LegalPage";
+import SplineTestPage from "./pages/public/SplineTestPage";
 
 // Accountant pages
 import AccountantRegistration from "./pages/AccountantRegistration";
@@ -47,121 +48,55 @@ const AdminDashboard = lazy(() =>
 // - AdminCleaningCompaniesPage (OLD) → use src/pages/admin/ version
 // - AdminAppointmentsPage (OLD) → use AppointmentsManager (NEW)
 
-const WorkersManager = lazy(() =>
-  import("./pages/Admin/WorkersManager").then((m) => ({
-    default: m.WorkersManager,
-  }))
-);
-const EmployersManager = lazy(() =>
-  import("./pages/Admin/EmployersManager").then((m) => ({
-    default: m.EmployersManager,
-  }))
-);
-const MediaManager = lazy(() =>
-  import("./pages/Admin/MediaManager").then((m) => ({
-    default: m.MediaManager,
-  }))
-);
-const MessagesManager = lazy(() =>
-  import("./pages/Admin/MessagesManager").then((m) => ({
-    default: m.MessagesManager,
-  }))
-);
-const BillingManager = lazy(() =>
-  import("./pages/Admin/BillingManager").then((m) => ({
-    default: m.BillingManager,
-  }))
-);
+const WorkersManager = lazy(() => import("./pages/Admin/WorkersManager"));
+// ❌ REMOVED: EmployersManager - do przebudowy
+// const EmployersManager = lazy(() =>
+//   import("./pages/Admin/EmployersManager").then((m) => ({
+//     default: m.EmployersManager,
+//   }))
+// );
+const MediaManager = lazy(() => import("./pages/Admin/MediaManager"));
+const MessagesManager = lazy(() => import("./pages/Admin/MessagesManager"));
+const BillingManager = lazy(() => import("./pages/Admin/BillingManager"));
 // ❌ REMOVED: AnalyticsManager (DUPLICATE - using DataAnalyticsPage instead)
-const SecurityManager = lazy(() =>
-  import("./pages/Admin/SecurityManager").then((m) => ({
-    default: m.SecurityManager,
-  }))
+const SecurityManager = lazy(() => import("./pages/Admin/SecurityManager"));
+const SEOManager = lazy(() => import("./pages/Admin/SEOManager"));
+const DatabaseManager = lazy(() => import("./pages/Admin/DatabaseManager"));
+const EmailMarketingManager = lazy(
+  () => import("./pages/Admin/EmailMarketingManager")
 );
-const SEOManager = lazy(() =>
-  import("./pages/Admin/SEOManager").then((m) => ({
-    default: m.SEOManager,
-  }))
+const BlogCMSManager = lazy(() => import("./pages/Admin/BlogCMSManager"));
+const AppointmentsManager = lazy(
+  () => import("./pages/Admin/AppointmentsManager")
 );
-const DatabaseManager = lazy(() =>
-  import("./pages/Admin/DatabaseManager").then((m) => ({
-    default: m.DatabaseManager,
-  }))
+const TestScheduler = lazy(() => import("./pages/Admin/TestSchedulerPageNew"));
+const CertificatesManager = lazy(
+  () => import("./pages/Admin/CertificatesManager")
 );
-const EmailMarketingManager = lazy(() =>
-  import("./pages/Admin/EmailMarketingManager").then((m) => ({
-    default: m.EmailMarketingManager,
-  }))
+const SettingsPanel = lazy(() => import("./pages/Admin/SettingsPanel"));
+const PaymentsManager = lazy(() => import("./pages/Admin/PaymentsManager"));
+const SubscriptionsManager = lazy(
+  () => import("./pages/Admin/SubscriptionsManager")
 );
-const BlogCMSManager = lazy(() =>
-  import("./pages/Admin/BlogCMSManager").then((m) => ({
-    default: m.BlogCMSManager,
-  }))
+const AccountantsManager = lazy(
+  () => import("./pages/Admin/AccountantsManager")
 );
-const AppointmentsManager = lazy(() =>
-  import("./pages/Admin/AppointmentsManager").then((m) => ({
-    default: m.AppointmentsManager,
-  }))
+const CleaningCompaniesManager = lazy(
+  () => import("./pages/Admin/CleaningCompaniesManager")
 );
-const TestScheduler = lazy(() =>
-  import("./pages/Admin/TestSchedulerPageNew").then((m) => ({
-    default: m.TestSchedulerPageNew,
-  }))
+const NotificationsManager = lazy(
+  () => import("./pages/Admin/NotificationsManager")
 );
-const CertificatesManager = lazy(() =>
-  import("./pages/Admin/CertificatesManager").then((m) => ({
-    default: m.CertificatesManager,
-  }))
+const ReportsManager = lazy(() => import("./pages/Admin/ReportsManager"));
+const AdminPerformancePage = lazy(
+  () => import("./pages/Admin/PerformancePage")
 );
-const SettingsPanel = lazy(() =>
-  import("./pages/Admin/SettingsPanel").then((m) => ({
-    default: m.SettingsPanel,
-  }))
+const AdvancedSearchPage = lazy(
+  () => import("./pages/Admin/AdvancedSearchPage")
 );
-const PaymentsManager = lazy(() =>
-  import("./pages/Admin/PaymentsManager").then((m) => ({
-    default: m.PaymentsManager,
-  }))
-);
-const AccountantsManager = lazy(() =>
-  import("./pages/Admin/AccountantsManager").then((m) => ({
-    default: m.AccountantsManager,
-  }))
-);
-const CleaningCompaniesManager = lazy(() =>
-  import("./pages/Admin/CleaningCompaniesManager").then((m) => ({
-    default: m.CleaningCompaniesManager,
-  }))
-);
-const NotificationsManager = lazy(() =>
-  import("./pages/Admin/NotificationsManager").then((m) => ({
-    default: m.NotificationsManager,
-  }))
-);
-const ReportsManager = lazy(() =>
-  import("./pages/Admin/ReportsManager").then((m) => ({
-    default: m.ReportsManager,
-  }))
-);
-const AdminPerformancePage = lazy(() =>
-  import("./pages/Admin/PerformancePage").then((m) => ({
-    default: m.PerformancePage,
-  }))
-);
-const AdvancedSearchPage = lazy(() =>
-  import("./pages/Admin/AdvancedSearchPage").then((m) => ({
-    default: m.AdvancedSearchPage,
-  }))
-);
-const DataAnalyticsPage = lazy(() =>
-  import("./pages/Admin/DataAnalyticsPage").then((m) => ({
-    default: m.DataAnalyticsPage,
-  }))
-);
-const APIIntegrationAutomationPage = lazy(() =>
-  import("./pages/Admin/APIIntegrationAutomationPage").then((m) => ({
-    default: m.APIIntegrationAutomationPage,
-  }))
+const DataAnalyticsPage = lazy(() => import("./pages/Admin/DataAnalyticsPage"));
+const APIIntegrationAutomationPage = lazy(
+  () => import("./pages/Admin/APIIntegrationAutomationPage")
 );
 const SecurityCompliancePage = lazy(() =>
   import("./pages/Admin/SecurityCompliancePage").then((m) => ({
@@ -213,8 +148,8 @@ const SubscriptionsManagementPage = lazy(() =>
 // );
 
 // Test pages (LAZY LOADED)
-const AvatarUploadTest = lazy(() => import("./src/pages/AvatarUploadTest"));
-const SupabaseAuthTest = lazy(() => import("./src/pages/SupabaseAuthTest"));
+// ❌ REMOVED: AvatarUploadTest - moved to archiwum/smieci
+// ❌ REMOVED: SupabaseAuthTest - moved to archiwum/smieci
 const AdvancedUIDemo = lazy(() => import("./pages/AdvancedUIDemo"));
 const ErrorHandlingUXDemo = lazy(() => import("./pages/ErrorHandlingUXDemo"));
 const TestCommunicationPage = lazy(() =>
@@ -234,21 +169,9 @@ const WorkerSearch = lazy(() =>
     default: m.WorkerSearch,
   }))
 );
-const CleaningCompanySearch = lazy(() =>
-  import("./src/pages/employer/CleaningCompanySearch").then((m) => ({
-    default: m.default,
-  }))
-); // ✨ NOWE: Wyszukiwarka firm sprzątających
-const CleaningCompanyPublicProfile = lazy(() =>
-  import("./src/pages/public/CleaningCompanyPublicProfile").then((m) => ({
-    default: m.CleaningCompanyPublicProfile,
-  }))
-); // ✨ NOWE: Publiczny profil firmy
-const AccountantPublicProfile = lazy(() =>
-  import("./src/pages/public/AccountantPublicProfile").then((m) => ({
-    default: m.AccountantPublicProfile,
-  }))
-); // ✨ NOWE: Publiczny profil księgowego
+// ❌ REMOVED: CleaningCompanySearch - moved to archiwum/smieci
+// ❌ REMOVED: CleaningCompanyPublicProfile - moved to archiwum/smieci
+// ❌ REMOVED: AccountantPublicProfile - moved to archiwum/smieci
 const SubscriptionManager = lazy(() =>
   import("./pages/employer/SubscriptionManager").then((m) => ({
     default: m.SubscriptionManager,
@@ -269,30 +192,11 @@ const WorkerDashboard = lazy(() => import("./pages/WorkerDashboard"));
 const WorkerSubscriptionSelectionPage = lazy(
   () => import("./pages/worker/WorkerSubscriptionSelectionPage")
 );
-
 // Cleaning Company pages (LAZY LOADED) ✨ NOWE
+// ❌ REMOVED: CleaningDashboard, CleaningReviewsPage, CleaningPortfolioPage - moved to archiwum
 // CleaningCompanyProfile removed - use Dashboard Settings tab instead
-const CleaningDashboard = lazy(() =>
-  import("./src/pages/cleaning/CleaningDashboard").then((m) => ({
-    default: m.default,
-  }))
-);
-const CleaningReviewsPage = lazy(() =>
-  import("./src/pages/cleaning/CleaningReviewsPage").then((m) => ({
-    default: m.default,
-  }))
-);
-// CleaningMessagesPage - REMOVED - now using modal in CleaningDashboard (like Employer/Worker)
-const CleaningPortfolioPage = lazy(() =>
-  import("./src/pages/cleaning/CleaningPortfolioPage").then((m) => ({
-    default: m.default,
-  }))
-);
 
-// Invoice Module (LAZY LOADED)
-const InvoiceApp = lazy(() =>
-  import("./src/modules/invoices").then((m) => ({ default: m.InvoiceApp }))
-);
+// ❌ REMOVED: Invoice Module - moved to archiwum
 
 function App() {
   return (
@@ -324,6 +228,10 @@ function App() {
                           element={<ForEmployersPage />}
                         />
                         <Route path="/contact" element={<ContactPage />} />
+                        <Route
+                          path="/spline-test"
+                          element={<SplineTestPage />}
+                        />
                         <Route path="/login" element={<LoginPage />} />
                         <Route
                           path="/register/employer"
@@ -343,13 +251,8 @@ function App() {
                         />
                         {/* Public profile pages - beautiful full panels */}
                         <Route
-                          path="/employer/:id"
+                          path="/employer/profile/:id"
                           element={<EmployerPublicProfilePage />}
-                        />
-                        {/* ✨ NOWY: Publiczny profil księgowego */}
-                        <Route
-                          path="/accountant/profile/:id"
-                          element={<AccountantPublicProfile />}
                         />
                         <Route
                           path="/worker/profile/:id"
@@ -377,14 +280,9 @@ function App() {
                           path="/exam-success"
                           element={<Navigate to="/dashboard" replace />}
                         />
-                        <Route
-                          path="/test/auth"
-                          element={<SupabaseAuthTest />}
-                        />
-                        <Route
-                          path="/test/avatar-upload"
-                          element={<AvatarUploadTest />}
-                        />
+                        {/* ❌ REMOVED: Test pages moved to archiwum/smieci */}
+                        {/* <Route path="/test/auth" element={<SupabaseAuthTest />} /> */}
+                        {/* <Route path="/test/avatar-upload" element={<AvatarUploadTest />} /> */}
                         <Route
                           path="/test/communication"
                           element={<TestCommunicationPage />}
@@ -423,25 +321,6 @@ function App() {
                             </ProtectedRoute>
                           }
                         />
-                        {/* ✨ NOWA ŚCIEŻKA: Wyszukiwarka firm sprzątających */}
-                        <Route
-                          path="/employer/cleaning-companies"
-                          element={
-                            <ProtectedRoute>
-                              <CleaningCompanySearch />
-                            </ProtectedRoute>
-                          }
-                        />
-                        {/* ✨ NOWA ŚCIEŻKA: Publiczny profil firmy sprzątającej (dostępny dla wszystkich) */}
-                        <Route
-                          path="/cleaning-companies/:id"
-                          element={<CleaningCompanyPublicProfile />}
-                        />
-                        {/* ✨ NOWA ŚCIEŻKA: Publiczny profil księgowego (dostępny dla wszystkich) */}
-                        <Route
-                          path="/accountants/:id"
-                          element={<AccountantPublicProfile />}
-                        />
                       </Route>
 
                       {/* Accountant Routes */}
@@ -470,14 +349,8 @@ function App() {
                           path="certificate-approval"
                           element={<CertificateApprovalPage />}
                         />
-                        <Route
-                          path="subscriptions"
-                          element={<SubscriptionsManagementPage />}
-                        />
-                        <Route
-                          path="zzp-exams"
-                          element={<ZZPExamManagementPage />}
-                        />
+                        {/* ❌ REMOVED: subscriptions duplicate - using SubscriptionsManager below (line 399) */}
+                        {/* ❌ REMOVED: zzp-exams route - ZZPExamManagementPage not found */}
                         {/* ❌ REMOVED OLD DUPLICATE ROUTES:
                             - workers → AdminWorkersPage (OLD pages/Admin/) 
                             - employers → AdminEmployersPage (OLD)
@@ -507,10 +380,7 @@ function App() {
 
                         {/* ✅ ENTERPRISE MANAGEMENT PANELS (src/pages/admin/) */}
                         <Route path="workers" element={<WorkersManager />} />
-                        <Route
-                          path="employers"
-                          element={<EmployersManager />}
-                        />
+                        {/* ❌ REMOVED: employers route - moduł do przebudowy */}
                         <Route
                           path="accountants"
                           element={<AccountantsManager />}
@@ -521,6 +391,10 @@ function App() {
                         />
 
                         <Route path="payments" element={<PaymentsManager />} />
+                        <Route
+                          path="subscriptions"
+                          element={<SubscriptionsManager />}
+                        />
                         <Route
                           path="notifications"
                           element={<NotificationsManager />}
@@ -635,41 +509,9 @@ function App() {
                         />
                       </Route>
 
-                      {/* ✨ NOWE: Cleaning Company Routes (dla firm sprzątających) */}
-                      <Route
-                        path="/cleaning/*"
-                        element={
-                          <CleaningRoute>
-                            <AuthenticatedLayout />
-                          </CleaningRoute>
-                        }
-                      >
-                        <Route index element={<CleaningDashboard />} />
-                        <Route
-                          path="dashboard"
-                          element={<CleaningDashboard />}
-                        />
-                        {/* Profile editing via Dashboard Settings tab + CompanyInfoEditModal */}
-                        <Route
-                          path="reviews"
-                          element={<CleaningReviewsPage />}
-                        />
-                        {/* Messages - now handled by modal in CleaningDashboard */}
-                        <Route
-                          path="portfolio"
-                          element={<CleaningPortfolioPage />}
-                        />
-                      </Route>
+                      {/* ❌ REMOVED: Cleaning Company Routes - moved to archiwum */}
 
-                      {/* Invoice Module - available for all authenticated users */}
-                      <Route
-                        path="/invoices/*"
-                        element={
-                          <ProtectedRoute>
-                            <InvoiceApp />
-                          </ProtectedRoute>
-                        }
-                      />
+                      {/* ❌ REMOVED: Invoice Module - moved to archiwum */}
 
                       {/* 404 */}
                       <Route path="*" element={<Navigate to="/" replace />} />

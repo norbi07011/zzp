@@ -14,7 +14,7 @@ import {
   TrendingUp,
   Calendar,
 } from "../../components/icons";
-import { supabase } from "../../src/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 
 // Types

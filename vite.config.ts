@@ -9,6 +9,7 @@ export default defineConfig(({ mode }) => {
   const isProd = mode === "production";
 
   return {
+    publicDir: "Public", // 🔥 FIX: Folder z dużą literą
     server: {
       port: 3005,
       host: "0.0.0.0",
@@ -51,6 +52,10 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Increase file size limit to 3MB (stats.html is 2.1MB)
           maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+          // 🔥 AUTO CACHE CLEAR SETTINGS
+          cleanupOutdatedCaches: true,
+          skipWaiting: true,
+          clientsClaim: true,
           // Cache strategies
           runtimeCaching: [
             {
@@ -128,8 +133,15 @@ export default defineConfig(({ mode }) => {
       // Chunk size warning
       chunkSizeWarningLimit: 800,
 
+      // 🔥 COMBINED ROLLUP OPTIONS: Cache busting + manual chunks
       rollupOptions: {
         output: {
+          // Cache busting filenames
+          entryFileNames: `assets/[name].[hash].js`,
+          chunkFileNames: `assets/[name].[hash].js`,
+          assetFileNames: `assets/[name].[hash].[ext]`,
+
+          // Manual chunks for better caching
           manualChunks: {
             // Core React libs - cached by browser
             "vendor-react": ["react", "react-dom", "react-router-dom"],
@@ -154,24 +166,6 @@ export default defineConfig(({ mode }) => {
 
             // Utils
             "vendor-utils": ["clsx", "classnames"],
-          },
-
-          // Optimize chunk names
-          chunkFileNames: (chunkInfo) => {
-            return `assets/[name]-[hash].js`;
-          },
-
-          // Optimize asset names
-          assetFileNames: (assetInfo) => {
-            if (!assetInfo.name) return "assets/[name]-[hash][extname]";
-            const info = assetInfo.name.split(".");
-            let extType = info[info.length - 1];
-            if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType)) {
-              extType = "img";
-            } else if (/woff|woff2/.test(extType)) {
-              extType = "fonts";
-            }
-            return `assets/${extType}/[name]-[hash][extname]`;
           },
         },
       },

@@ -1,7 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useToasts } from '../../contexts/ToastContext';
-import { supabase } from '../../src/lib/supabase';
+import { useState, useMemo, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useToasts } from "../../contexts/ToastContext";
+import { supabase } from "@/lib/supabase";
 
 type CleaningCompany = {
   id: string;
@@ -18,10 +18,10 @@ type CleaningCompany = {
 
 export const CleaningCompaniesManager = () => {
   const { addToast } = useToasts();
-  
+
   const [companies, setCompanies] = useState<CleaningCompany[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchCompanies();
@@ -31,26 +31,27 @@ export const CleaningCompaniesManager = () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('cleaning_companies')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .from("cleaning_companies")
+        .select("*")
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setCompanies(data || []);
+      setCompanies((data || []) as CleaningCompany[]);
     } catch (error) {
-      console.error('❌ Error fetching cleaning companies:', error);
-      addToast('Błąd podczas ładowania firm sprzątających', 'error');
+      console.error("❌ Error fetching cleaning companies:", error);
+      addToast("Błąd podczas ładowania firm sprzątających", "error");
     } finally {
       setLoading(false);
     }
   };
 
   const filteredCompanies = useMemo(() => {
-    return companies.filter(company => {
-      const matchesSearch = 
+    return companies.filter((company) => {
+      const matchesSearch =
         company.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         company.owner_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (company.email && company.email.toLowerCase().includes(searchTerm.toLowerCase()));
+        (company.email &&
+          company.email.toLowerCase().includes(searchTerm.toLowerCase()));
 
       return matchesSearch;
     });
@@ -59,10 +60,16 @@ export const CleaningCompaniesManager = () => {
   const stats = useMemo(() => {
     return {
       total: companies.length,
-      withRatings: companies.filter(c => c.average_rating && c.average_rating > 0).length,
-      avgRating: companies.length > 0
-        ? (companies.reduce((sum, c) => sum + (c.average_rating || 0), 0) / companies.length).toFixed(1)
-        : '0.0',
+      withRatings: companies.filter(
+        (c) => c.average_rating && c.average_rating > 0
+      ).length,
+      avgRating:
+        companies.length > 0
+          ? (
+              companies.reduce((sum, c) => sum + (c.average_rating || 0), 0) /
+              companies.length
+            ).toFixed(1)
+          : "0.0",
     };
   }, [companies]);
 
@@ -80,8 +87,12 @@ export const CleaningCompaniesManager = () => {
       <div className="bg-white rounded-lg shadow-sm p-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Firmy Sprzątające</h1>
-            <p className="text-gray-600 mt-1">Zarządzaj firmami sprzątającymi w systemie</p>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Firmy Sprzątające
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Zarządzaj firmami sprzątającymi w systemie
+            </p>
           </div>
           <Link
             to="/admin"
@@ -94,15 +105,21 @@ export const CleaningCompaniesManager = () => {
         {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mt-6">
           <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.total}
+            </div>
             <div className="text-sm text-gray-600">Wszystkie firmy</div>
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">{stats.withRatings}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.withRatings}
+            </div>
             <div className="text-sm text-gray-600">Z ocenami</div>
           </div>
           <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="text-2xl font-bold text-yellow-600">{stats.avgRating}</div>
+            <div className="text-2xl font-bold text-yellow-600">
+              {stats.avgRating}
+            </div>
             <div className="text-sm text-gray-600">Średnia ocena</div>
           </div>
         </div>
@@ -150,7 +167,10 @@ export const CleaningCompaniesManager = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredCompanies.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                <td
+                  colSpan={6}
+                  className="px-6 py-12 text-center text-gray-500"
+                >
                   Brak firm sprzątających do wyświetlenia
                 </td>
               </tr>
@@ -160,7 +180,10 @@ export const CleaningCompaniesManager = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <img
-                        src={company.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${company.company_name}`}
+                        src={
+                          company.avatar_url ||
+                          `https://api.dicebear.com/7.x/initials/svg?seed=${company.company_name}`
+                        }
                         alt={company.company_name}
                         className="h-10 w-10 rounded-full"
                       />
@@ -172,21 +195,31 @@ export const CleaningCompaniesManager = () => {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{company.owner_name}</div>
+                    <div className="text-sm text-gray-900">
+                      {company.owner_name}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{company.email || '-'}</div>
+                    <div className="text-sm text-gray-900">
+                      {company.email || "-"}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{company.phone || '-'}</div>
+                    <div className="text-sm text-gray-900">
+                      {company.phone || "-"}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{company.location_city || '-'}</div>
+                    <div className="text-sm text-gray-900">
+                      {company.location_city || "-"}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <span className="text-sm font-medium text-gray-900">
-                        {company.average_rating ? company.average_rating.toFixed(1) : '-'}
+                        {company.average_rating
+                          ? company.average_rating.toFixed(1)
+                          : "-"}
                       </span>
                       {company.average_rating && (
                         <span className="ml-1 text-yellow-500">⭐</span>
@@ -202,3 +235,6 @@ export const CleaningCompaniesManager = () => {
     </div>
   );
 };
+
+// Export as default for lazy loading
+export default CleaningCompaniesManager;

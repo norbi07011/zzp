@@ -2,7 +2,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useToasts } from "../../contexts/ToastContext";
-import { useAppointments } from "../../src/hooks/useAppointments";
+import { useAppointments } from "@/hooks/useAppointments";
 import { QuickAppointmentModal } from "../../components/Admin/QuickAppointmentModal";
 import { AppointmentCalendarModal } from "../../components/Admin/AppointmentCalendarModal";
 import { VideoCallIntegrationModal } from "../../components/Admin/VideoCallIntegrationModal";
@@ -22,7 +22,7 @@ import type {
   Appointment,
   AppointmentStatus,
   AppointmentPriority,
-} from "../../src/services/appointments";
+} from "@/services/appointments";
 
 export const AppointmentsManager = () => {
   console.log("🎯 AppointmentsManager COMPONENT LOADED");

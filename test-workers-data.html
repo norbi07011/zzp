@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="pl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Workers Data - ZZP Werkplaats</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 1200px;
+        margin: 50px auto;
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+      }
+      .container {
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      }
+      h1 {
+        color: #333;
+        margin-bottom: 30px;
+      }
+      .test-section {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 20px 0;
+        border-left: 4px solid #667eea;
+      }
+      .test-title {
+        font-weight: bold;
+        color: #667eea;
+        margin-bottom: 10px;
+      }
+      pre {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 15px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 14px;
+      }
+      .status {
+        display: inline-block;
+        padding: 5px 15px;
+        border-radius: 20px;
+        font-weight: bold;
+        margin-left: 10px;
+      }
+      .status.success {
+        background: #d4edda;
+        color: #155724;
+      }
+      .status.error {
+        background: #f8d7da;
+        color: #721c24;
+      }
+      .status.warning {
+        background: #fff3cd;
+        color: #856404;
+      }
+      button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      button:hover {
+        transform: translateY(-2px);
+      }
+      #results {
+        margin-top: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔍 Test Workers Data - Diagnostyka Bazy Danych</h1>
+
+      <div class="test-section">
+        <div class="test-title">📝 Konfiguracja Supabase</div>
+        <p>URL: <code id="supabase-url">Ładowanie...</code></p>
+        <p>Anon Key: <code id="supabase-key">Ładowanie...</code></p>
+      </div>
+
+      <button onclick="runAllTests()">▶️ Uruchom Wszystkie Testy</button>
+
+      <div id="results"></div>
+    </div>
+
+    <script type="module">
+      // Import Supabase URL and Key from .env
+      const SUPABASE_URL =
+        import.meta.env?.VITE_SUPABASE_URL || "BRAK - Sprawdź .env";
+      const SUPABASE_ANON_KEY =
+        import.meta.env?.VITE_SUPABASE_ANON_KEY || "BRAK - Sprawdź .env";
+
+      // Fallback: Try to read from localStorage if available
+      const savedUrl = localStorage.getItem("supabase-url");
+      const savedKey = localStorage.getItem("supabase-key");
+
+      document.getElementById("supabase-url").textContent =
+        SUPABASE_URL || savedUrl || "❌ NIE ZNALEZIONO";
+      document.getElementById("supabase-key").textContent = SUPABASE_ANON_KEY
+        ? "✅ Załadowany"
+        : "❌ NIE ZNALEZIONO";
+
+      // Prompt user to enter credentials if missing
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+        const url = prompt("Wprowadź Supabase URL (z .env):");
+        const key = prompt("Wprowadź Supabase Anon Key (z .env):");
+
+        if (url && key) {
+          localStorage.setItem("supabase-url", url);
+          localStorage.setItem("supabase-key", key);
+          location.reload();
+        }
+      }
+
+      const supabase = window.supabase.createClient(
+        savedUrl || SUPABASE_URL,
+        savedKey || SUPABASE_ANON_KEY
+      );
+
+      window.runAllTests = async function () {
+        const resultsDiv = document.getElementById("results");
+        resultsDiv.innerHTML = "<h2>⏳ Uruchamianie testów...</h2>";
+
+        const tests = [];
+
+        // TEST 1: Check authentication
+        tests.push({
+          name: "TEST 1: Sprawdzenie autentykacji",
+          run: async () => {
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+
+            return {
+              success: !!session,
+              message: session
+                ? `Zalogowany jako: ${user?.email}`
+                : "❌ Nie zalogowany - zaloguj się w aplikacji głównej",
+              data: { session: !!session, email: user?.email },
+            };
+          },
+        });
+
+        // TEST 2: Check current user profile and role
+        tests.push({
+          name: "TEST 2: Sprawdzenie profilu użytkownika",
+          run: async () => {
+            const {
+              data: { user },
+            } = await supabase.auth.getUser();
+            if (!user)
+              return {
+                success: false,
+                message: "Brak zalogowanego użytkownika",
+              };
+
+            const { data: profile, error } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .single();
+
+            return {
+              success: !error,
+              message: error
+                ? `❌ Błąd: ${error.message}`
+                : `✅ Profil: ${profile.full_name || "Brak nazwy"} (rola: ${
+                    profile.role
+                  })`,
+              data: profile,
+            };
+          },
+        });
+
+        // TEST 3: Count all workers
+        tests.push({
+          name: "TEST 3: Liczba wszystkich pracowników",
+          run: async () => {
+            const { count, error } = await supabase
+              .from("workers")
+              .select("*", { count: "exact", head: true });
+
+            return {
+              success: !error,
+              message: error
+                ? `❌ Błąd: ${error.message}`
+                : `✅ Znaleziono ${count} pracowników`,
+              data: { count },
+            };
+          },
+        });
+
+        // TEST 4: Fetch workers WITHOUT profile JOIN
+        tests.push({
+          name: "TEST 4: Pobranie pracowników BEZ JOIN do profiles",
+          run: async () => {
+            const { data, error } = await supabase
+              .from("workers")
+              .select("id, profile_id, specialization, verified")
+              .limit(5);
+
+            return {
+              success: !error && data && data.length > 0,
+              message: error
+                ? `❌ Błąd: ${error.message}`
+                : data && data.length > 0
+                ? `✅ Pobrano ${data.length} pracowników`
+                : "⚠️ Brak danych w tabeli workers",
+              data: data,
+            };
+          },
+        });
+
+        // TEST 5: Fetch workers WITH profile JOIN (CRITICAL TEST)
+        tests.push({
+          name: "TEST 5: Pobranie pracowników Z JOIN do profiles (KRYTYCZNY TEST)",
+          run: async () => {
+            const { data, error } = await supabase
+              .from("workers")
+              .select(
+                `
+                            *,
+                            profile:profiles!workers_profile_id_fkey (
+                                id,
+                                full_name,
+                                email,
+                                avatar_url,
+                                role
+                            )
+                        `
+              )
+              .limit(5);
+
+            const hasProfiles =
+              data && data.length > 0 && data.some((w) => w.profile !== null);
+
+            return {
+              success: !error && hasProfiles,
+              message: error
+                ? `❌ Błąd: ${error.message}`
+                : !data || data.length === 0
+                ? "⚠️ Brak danych w tabeli workers"
+                : !hasProfiles
+                ? "❌ PROBLEM: JOIN działa ale profile === null (RLS blokuje dostęp do profiles!)"
+                : `✅ Pobrano ${data.length} pracowników z profilami`,
+              data: data,
+            };
+          },
+        });
+
+        // TEST 6: Check RLS policies on workers table
+        tests.push({
+          name: "TEST 6: Sprawdzenie polityk RLS dla tabeli workers",
+          run: async () => {
+            const { data, error } = await supabase
+              .rpc("check_rls_policies", {
+                table_name: "workers",
+              })
+              .catch(() => ({
+                data: null,
+                error: {
+                  message:
+                    "Funkcja check_rls_policies nie istnieje - to jest OK",
+                },
+              }));
+
+            return {
+              success: true,
+              message:
+                "⚠️ Sprawdź ręcznie w Supabase Dashboard → Authentication → Policies",
+              data: { note: "Potrzebna polityka: admin_full_access_workers" },
+            };
+          },
+        });
+
+        // TEST 7: Check RLS policies on profiles table
+        tests.push({
+          name: "TEST 7: Sprawdzenie polityk RLS dla tabeli profiles (KLUCZOWE)",
+          run: async () => {
+            const { data, error } = await supabase
+              .rpc("check_rls_policies", {
+                table_name: "profiles",
+              })
+              .catch(() => ({
+                data: null,
+                error: {
+                  message:
+                    "Funkcja check_rls_policies nie istnieje - to jest OK",
+                },
+              }));
+
+            return {
+              success: true,
+              message:
+                "⚠️ Sprawdź ręcznie w Supabase Dashboard → Authentication → Policies",
+              data: {
+                note: "Potrzebna polityka: admin_full_access_profiles - BEZ TEGO JOIN NIE ZADZIAŁA!",
+              },
+            };
+          },
+        });
+
+        // Run all tests
+        let html = "<h2>📊 Wyniki Testów</h2>";
+
+        for (const test of tests) {
+          try {
+            const result = await test.run();
+            const statusClass = result.success ? "success" : "error";
+
+            html += `
+                        <div class="test-section">
+                            <div class="test-title">
+                                ${test.name}
+                                <span class="status ${statusClass}">${
+              result.success ? "PASS" : "FAIL"
+            }</span>
+                            </div>
+                            <p>${result.message}</p>
+                            ${
+                              result.data
+                                ? `<pre>${JSON.stringify(
+                                    result.data,
+                                    null,
+                                    2
+                                  )}</pre>`
+                                : ""
+                            }
+                        </div>
+                    `;
+          } catch (err) {
+            html += `
+                        <div class="test-section">
+                            <div class="test-title">
+                                ${test.name}
+                                <span class="status error">ERROR</span>
+                            </div>
+                            <p>❌ Nieoczekiwany błąd: ${err.message}</p>
+                            <pre>${err.stack}</pre>
+                        </div>
+                    `;
+          }
+        }
+
+        html += `
+                <div class="test-section" style="border-left-color: #dc3545;">
+                    <div class="test-title" style="color: #dc3545;">🎯 DIAGNOZA KOŃCOWA</div>
+                    <p><strong>Jeśli TEST 5 pokazuje "profile === null":</strong></p>
+                    <ul>
+                        <li>✅ Zapytanie działa (zwraca workers)</li>
+                        <li>❌ RLS blokuje dostęp do tabeli <code>profiles</code> w JOIN</li>
+                        <li>🔧 <strong>ROZWIĄZANIE:</strong> Uruchom <code>sql/fix-admin-rls-workers-profiles-join.sql</code> w Supabase SQL Editor</li>
+                    </ul>
+                </div>
+            `;
+
+        resultsDiv.innerHTML = html;
+      };
+
+      // Auto-run tests on page load if authenticated
+      window.addEventListener("load", () => {
+        setTimeout(() => {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+              console.log(
+                "✅ Wykryto sesję - uruchamiam testy automatycznie..."
+              );
+              runAllTests();
+            } else {
+              document.getElementById("results").innerHTML = `
+                            <div class="test-section" style="border-left-color: #ffc107;">
+                                <div class="test-title" style="color: #ffc107;">⚠️ Brak sesji użytkownika</div>
+                                <p>Zaloguj się w głównej aplikacji (localhost:3005), a następnie kliknij przycisk powyżej.</p>
+                            </div>
+                        `;
+            }
+          });
+        }, 500);
+      });
+    </script>
+  </body>
+</html>

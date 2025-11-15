@@ -34,7 +34,7 @@ import {
   sendZZPCertificateIssuedEmail,
 } from "../../services/email/zzpEmailNotifications";
 import { useAuth } from "../../contexts/AuthContext";
-import { supabase } from "../../src/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 interface EvaluationData {
   score: number;

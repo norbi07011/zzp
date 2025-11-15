@@ -18,3 +18,6 @@ export const BillingManager = () => {
     </div>
   );
 };
+
+// Export as default for lazy loading
+export default BillingManager;

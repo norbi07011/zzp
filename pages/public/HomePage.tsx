@@ -1,92 +1,132 @@
-import React from "react";
+import React, { Suspense } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Logo } from "../../src/components/common/Logo";
+import Spline from "@splinetool/react-spline";
 
 export const HomePage: React.FC = () => {
   const { t } = useTranslation();
 
   return (
     <div className="bg-primary-dark">
-      {/* Hero Section */}
-      <section className="relative bg-gradient-hero text-white overflow-hidden">
-        <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 relative">
-          <div className="text-center max-w-4xl mx-auto">
-            {/* Logo */}
-            <div className="flex justify-center mb-8 animate-fade-in">
-              <Logo size="xl" showText={true} />
-            </div>
-
-            <h1 className="text-6xl md:text-7xl font-bold mb-6 animate-slide-in-up font-heading">
-              {t("home.hero.title", "Vind de Beste ZZP'ers")}
-              <span className="block text-accent-cyber mt-2">
-                Voor Jouw Project
-              </span>
-            </h1>
-            <p className="text-xl md:text-2xl mb-12 text-neutral-300 animate-fade-in">
-              {t(
-                "home.hero.subtitle",
-                "Direct contact met professionals. Transparante prijzen. Teams & solo workers. Geen commissie."
-              )}
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center flex-wrap">
-              <Link
-                to="/register/worker"
-                className="group relative bg-gradient-success text-white px-10 py-5 rounded-xl font-bold text-lg transition-all shadow-glow-success hover:shadow-glow-success hover:scale-105 overflow-hidden"
-              >
-                <span className="relative z-10">
-                  {t("home.hero.ctaWorker", "🔨 Registreer als ZZP'er")}
-                </span>
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
-              </Link>
-              <Link
-                to="/register/employer"
-                className="group relative bg-primary-navy/50 backdrop-blur-md text-white px-10 py-5 rounded-xl font-bold text-lg transition-all shadow-3d hover:shadow-glow-cyber hover:scale-105 border-2 border-accent-cyber/30 hover:border-accent-cyber"
-              >
-                {t("home.hero.ctaEmployer", "🏢 Vind ZZP'ers")}
-              </Link>
-              <Link
-                to="/register/cleaning"
-                className="group relative bg-gradient-to-r from-blue-500 to-green-500 text-white px-10 py-5 rounded-xl font-bold text-lg transition-all shadow-glow-cyber hover:shadow-glow-success hover:scale-105 overflow-hidden"
-              >
-                <span className="relative z-10">🧹 Firma sprzątająca</span>
-                <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity"></div>
-              </Link>
-            </div>
-          </div>
+      {/* Hero Section - Video Background FULLSCREEN */}
+      <section className="relative bg-black text-white overflow-hidden min-h-screen">
+        {/* Video Background - PEŁNY EKRAN BEZ FILTRA */}
+        <div className="absolute inset-0 z-0">
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            className="w-full h-full object-cover"
+            onLoadedData={(e) => {
+              const video = e.currentTarget;
+              video.play().catch((err) => console.log("Video autoplay:", err));
+            }}
+          >
+            <source src="/LOGO W TLE2.mp4" type="video/mp4" />
+            Twoja przeglądarka nie obsługuje video.
+          </video>
         </div>
-        {/* Decorative elements */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-accent-cyber/10 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-accent-techGreen/10 rounded-full blur-3xl"></div>
-      </section>
 
-      {/* Trust Indicators */}
-      <section className="py-16 bg-primary-navy/30 backdrop-blur-sm border-b border-accent-cyber/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            <div className="group hover:scale-105 transition-transform">
-              <div className="text-5xl font-bold text-accent-cyber mb-3 group-hover:animate-glow">
-                500+
+        {/* Zawartość NA FILMIE (z-index wyższy) - CAŁKOWICIE LEWA STRONA */}
+        <div className="relative z-20 min-h-screen flex items-center">
+          {/* USUNIĘTO max-w-7xl mx-auto - teraz CAŁKOWICIE z lewej */}
+          <div className="w-full pl-8 lg:pl-16 py-16 lg:py-24">
+            {/* Cała zawartość CAŁKOWICIE z lewej strony */}
+            <div className="max-w-2xl">
+              {/* Main Heading - Premium Style - CAŁKOWICIE LEFT */}
+              <div className="space-y-8 mb-16">
+                <h1
+                  className="text-5xl lg:text-7xl font-black leading-tight text-left"
+                  style={{
+                    textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  <span className="block text-white drop-shadow-lg">ZZP Werkplaats</span>
+                  <span 
+                    className="block mt-2 text-4xl lg:text-6xl bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent font-black"
+                    style={{
+                      textShadow: "none",
+                      filter: "drop-shadow(2px 2px 4px rgba(0,0,0,0.4))",
+                    }}
+                  >
+                    voor professionals
+                  </span>
+                </h1>
+
+                <p
+                  className="text-2xl lg:text-3xl text-white font-bold leading-relaxed text-left drop-shadow-lg"
+                  style={{ textShadow: "2px 2px 4px rgba(0,0,0,0.3)" }}
+                >
+                  Gecertificeerde vakmensen voor de bouw.
+                  <span className="block mt-3 text-white font-black text-3xl lg:text-4xl">
+                    Elke professional is getest en geverifieerd.
+                  </span>
+                </p>
               </div>
-              <div className="text-neutral-300">
-                {t("home.trust.workers", "Actieve ZZP'ers")}
+
+              {/* CTA Buttons - CAŁKOWICIE LEFT */}
+              <div className="flex flex-col sm:flex-row gap-6 mb-20">
+                <Link
+                  to="/register/worker"
+                  className="group relative bg-gradient-to-r from-white to-gray-100 text-black px-12 py-6 rounded-2xl font-bold text-xl transition-all hover:scale-105 hover:shadow-2xl shadow-2xl w-fit"
+                >
+                  <span className="flex items-center justify-center gap-3">
+                    <span className="text-3xl">🔨</span>
+                    <span>Start als ZZP'er</span>
+                  </span>
+                </Link>
+
+                <Link
+                  to="/register/employer"
+                  className="group relative bg-white/15 backdrop-blur-xl text-white px-12 py-6 rounded-2xl font-bold text-xl border-2 border-white/50 hover:border-cyan-300 hover:bg-white/25 transition-all shadow-2xl w-fit"
+                >
+                  <span className="flex items-center justify-center gap-3">
+                    <span className="text-3xl">🏢</span>
+                    <span>Odkryj Talent</span>
+                  </span>
+                </Link>
               </div>
-            </div>
-            <div className="group hover:scale-105 transition-transform">
-              <div className="text-5xl font-bold text-accent-techGreen mb-3 group-hover:animate-glow">
-                1200+
-              </div>
-              <div className="text-neutral-300">
-                {t("home.trust.projects", "Succesvolle matches")}
-              </div>
-            </div>
-            <div className="group hover:scale-105 transition-transform">
-              <div className="text-5xl font-bold text-accent-cyber mb-3 group-hover:animate-glow">
-                98%
-              </div>
-              <div className="text-neutral-300">
-                {t("home.trust.satisfaction", "Tevredenheid")}
+
+              {/* Stats Cards - CAŁKOWICIE LEFT */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-3xl">
+                <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
+                  <div
+                    className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
+                    style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
+                  >
+                    500+
+                  </div>
+                  <div className="text-sm font-bold text-white uppercase tracking-wide">
+                    Actieve ZZP'ers
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
+                  <div
+                    className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
+                    style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
+                  >
+                    1200+
+                  </div>
+                  <div className="text-sm font-bold text-white uppercase tracking-wide">
+                    Matches
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 backdrop-blur-xl border-2 border-cyan-400/60 rounded-2xl p-6 shadow-2xl hover:scale-105 transition-transform">
+                  <div
+                    className="text-5xl lg:text-6xl font-black bg-gradient-to-r from-cyan-200 to-cyan-300 bg-clip-text text-transparent mb-2"
+                    style={{ textShadow: "0 0 30px rgba(34,211,238,0.5)" }}
+                  >
+                    98%
+                  </div>
+                  <div className="text-sm font-bold text-white uppercase tracking-wide">
+                    Tevredenheid
+                  </div>
+                </div>
               </div>
             </div>
           </div>

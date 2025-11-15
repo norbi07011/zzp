@@ -670,3 +670,6 @@ export const SettingsPanel = () => {
     </div>
   );
 };
+
+// Export as default for lazy loading
+export default SettingsPanel;

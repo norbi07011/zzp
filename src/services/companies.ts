@@ -2,7 +2,7 @@
 /**
  * Companies Service - Supabase Integration
  * Manages employer/company profiles, subscriptions, and business data
- * 
+ *
  * Database Schema (companies table):
  * - id: uuid (primary key)
  * - user_id: uuid (foreign key to auth.users)
@@ -38,11 +38,16 @@
  * - updated_at: timestamp
  */
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from "@/lib/supabase";
 
-export type SubscriptionPlan = 'free' | 'basic' | 'premium' | 'enterprise';
-export type SubscriptionStatus = 'active' | 'inactive' | 'trial' | 'cancelled' | 'expired';
-export type CompanySize = '1-10' | '11-50' | '51-200' | '201-500' | '500+';
+export type SubscriptionPlan = "free" | "basic" | "premium" | "enterprise";
+export type SubscriptionStatus =
+  | "active"
+  | "inactive"
+  | "trial"
+  | "cancelled"
+  | "expired";
+export type CompanySize = "1-10" | "11-50" | "51-200" | "201-500" | "500+";
 
 export interface Company {
   id: string;
@@ -111,22 +116,22 @@ export interface CompanyStats {
  */
 export async function fetchAllCompanies(): Promise<Company[]> {
   const { data, error } = await supabase
-    .from('companies')
-    .select(`
+    .from("employers")
+    .select(
+      `
       *,
-      user:user_id (
+      profile:profile_id (
         id,
         email,
-        profile:profiles (
-          full_name,
-          avatar_url
-        )
+        full_name,
+        avatar_url
       )
-    `)
-    .order('created_at', { ascending: false });
+    `
+    )
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error fetching companies:', error);
+    console.error("Error fetching companies:", error);
     throw error;
   }
 
@@ -138,23 +143,23 @@ export async function fetchAllCompanies(): Promise<Company[]> {
  */
 export async function fetchCompanyById(id: string): Promise<Company | null> {
   const { data, error } = await supabase
-    .from('companies')
-    .select(`
+    .from("employers")
+    .select(
+      `
       *,
-      user:user_id (
+      profile:profile_id (
         id,
         email,
-        profile:profiles (
-          full_name,
-          avatar_url
-        )
+        full_name,
+        avatar_url
       )
-    `)
-    .eq('id', id)
+    `
+    )
+    .eq("id", id)
     .single();
 
   if (error) {
-    console.error('Error fetching company:', error);
+    console.error("Error fetching company:", error);
     return null;
   }
 
@@ -164,15 +169,17 @@ export async function fetchCompanyById(id: string): Promise<Company | null> {
 /**
  * Fetch companies by subscription plan
  */
-export async function fetchCompaniesByPlan(plan: SubscriptionPlan): Promise<Company[]> {
+export async function fetchCompaniesByPlan(
+  plan: SubscriptionPlan
+): Promise<Company[]> {
   const { data, error } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('subscription_plan', plan)
-    .order('created_at', { ascending: false });
+    .from("employers")
+    .select("*")
+    .eq("subscription_plan", plan)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error fetching companies by plan:', error);
+    console.error("Error fetching companies by plan:", error);
     throw error;
   }
 
@@ -182,15 +189,17 @@ export async function fetchCompaniesByPlan(plan: SubscriptionPlan): Promise<Comp
 /**
  * Fetch companies by subscription status
  */
-export async function fetchCompaniesByStatus(status: SubscriptionStatus): Promise<Company[]> {
+export async function fetchCompaniesByStatus(
+  status: SubscriptionStatus
+): Promise<Company[]> {
   const { data, error } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('subscription_status', status)
-    .order('created_at', { ascending: false });
+    .from("employers")
+    .select("*")
+    .eq("subscription_status", status)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error fetching companies by status:', error);
+    console.error("Error fetching companies by status:", error);
     throw error;
   }
 
@@ -200,17 +209,19 @@ export async function fetchCompaniesByStatus(status: SubscriptionStatus): Promis
 /**
  * Create new company
  */
-export async function createCompany(companyData: Partial<Company>): Promise<boolean> {
-  const { error } = await supabase
-    .from('companies')
-    .insert([{
+export async function createCompany(
+  companyData: Partial<Company>
+): Promise<boolean> {
+  const { error } = await supabase.from("employers").insert([
+    {
       ...companyData,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }]);
+      updated_at: new Date().toISOString(),
+    },
+  ]);
 
   if (error) {
-    console.error('Error creating company:', error);
+    console.error("Error creating company:", error);
     return false;
   }
 
@@ -220,17 +231,20 @@ export async function createCompany(companyData: Partial<Company>): Promise<bool
 /**
  * Update company
  */
-export async function updateCompany(id: string, updates: Partial<Company>): Promise<boolean> {
+export async function updateCompany(
+  id: string,
+  updates: Partial<Company>
+): Promise<boolean> {
   const { error } = await supabase
-    .from('companies')
+    .from("employers")
     .update({
       ...updates,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
-    .eq('id', id);
+    .eq("id", id);
 
   if (error) {
-    console.error('Error updating company:', error);
+    console.error("Error updating company:", error);
     return false;
   }
 
@@ -241,13 +255,10 @@ export async function updateCompany(id: string, updates: Partial<Company>): Prom
  * Delete company
  */
 export async function deleteCompany(id: string): Promise<boolean> {
-  const { error } = await supabase
-    .from('companies')
-    .delete()
-    .eq('id', id);
+  const { error } = await supabase.from("employers").delete().eq("id", id);
 
   if (error) {
-    console.error('Error deleting company:', error);
+    console.error("Error deleting company:", error);
     return false;
   }
 
@@ -260,7 +271,7 @@ export async function deleteCompany(id: string): Promise<boolean> {
 export async function verifyCompany(id: string): Promise<boolean> {
   return await updateCompany(id, {
     is_verified: true,
-    verification_date: new Date().toISOString()
+    verification_date: new Date().toISOString(),
   });
 }
 
@@ -270,7 +281,7 @@ export async function verifyCompany(id: string): Promise<boolean> {
 export async function unverifyCompany(id: string): Promise<boolean> {
   return await updateCompany(id, {
     is_verified: false,
-    verification_date: null
+    verification_date: null,
   });
 }
 
@@ -286,7 +297,7 @@ export async function updateSubscriptionPlan(
   return await updateCompany(id, {
     subscription_plan: plan,
     monthly_fee: monthlyFee,
-    workers_limit: workersLimit
+    workers_limit: workersLimit,
   });
 }
 
@@ -298,16 +309,16 @@ export async function updateSubscriptionStatus(
   status: SubscriptionStatus
 ): Promise<boolean> {
   const updates: Partial<Company> = {
-    subscription_status: status
+    subscription_status: status,
   };
 
   // If activating, set start date
-  if (status === 'active' || status === 'trial') {
+  if (status === "active" || status === "trial") {
     updates.subscription_start_date = new Date().toISOString();
   }
 
   // If cancelling/expiring, set end date
-  if (status === 'cancelled' || status === 'expired') {
+  if (status === "cancelled" || status === "expired") {
     updates.subscription_end_date = new Date().toISOString();
   }
 
@@ -317,7 +328,10 @@ export async function updateSubscriptionStatus(
 /**
  * Extend subscription
  */
-export async function extendSubscription(id: string, months: number): Promise<boolean> {
+export async function extendSubscription(
+  id: string,
+  months: number
+): Promise<boolean> {
   const company = await fetchCompanyById(id);
   if (!company) return false;
 
@@ -326,14 +340,17 @@ export async function extendSubscription(id: string, months: number): Promise<bo
 
   return await updateCompany(id, {
     subscription_end_date: endDate.toISOString(),
-    subscription_status: 'active'
+    subscription_status: "active",
   });
 }
 
 /**
  * Add tags to company
  */
-export async function addCompanyTags(id: string, newTags: string[]): Promise<boolean> {
+export async function addCompanyTags(
+  id: string,
+  newTags: string[]
+): Promise<boolean> {
   const company = await fetchCompanyById(id);
   if (!company) return false;
 
@@ -346,12 +363,17 @@ export async function addCompanyTags(id: string, newTags: string[]): Promise<boo
 /**
  * Remove tags from company
  */
-export async function removeCompanyTags(id: string, tagsToRemove: string[]): Promise<boolean> {
+export async function removeCompanyTags(
+  id: string,
+  tagsToRemove: string[]
+): Promise<boolean> {
   const company = await fetchCompanyById(id);
   if (!company) return false;
 
   const existingTags = company.tags || [];
-  const filteredTags = existingTags.filter(tag => !tagsToRemove.includes(tag));
+  const filteredTags = existingTags.filter(
+    (tag) => !tagsToRemove.includes(tag)
+  );
 
   return await updateCompany(id, { tags: filteredTags });
 }
@@ -361,13 +383,15 @@ export async function removeCompanyTags(id: string, tagsToRemove: string[]): Pro
  */
 export async function searchCompanies(query: string): Promise<Company[]> {
   const { data, error } = await supabase
-    .from('companies')
-    .select('*')
-    .or(`company_name.ilike.%${query}%,company_nip.ilike.%${query}%,contact_email.ilike.%${query}%`)
-    .order('created_at', { ascending: false });
+    .from("employers")
+    .select("*")
+    .or(
+      `company_name.ilike.%${query}%,company_nip.ilike.%${query}%,contact_email.ilike.%${query}%`
+    )
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('Error searching companies:', error);
+    console.error("Error searching companies:", error);
     throw error;
   }
 
@@ -381,26 +405,36 @@ export async function getCompanyStats(): Promise<CompanyStats> {
   const companies = await fetchAllCompanies();
 
   const now = new Date();
-  const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+  const monthAgo = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    now.getDate()
+  );
 
   const stats: CompanyStats = {
     total: companies.length,
-    active: companies.filter(c => c.subscription_status === 'active').length,
-    trial: companies.filter(c => c.subscription_status === 'trial').length,
-    inactive: companies.filter(c => c.subscription_status === 'inactive').length,
-    verified: companies.filter(c => c.is_verified).length,
+    active: companies.filter((c) => c.subscription_status === "active").length,
+    trial: companies.filter((c) => c.subscription_status === "trial").length,
+    inactive: companies.filter((c) => c.subscription_status === "inactive")
+      .length,
+    verified: companies.filter((c) => c.is_verified).length,
     byPlan: {
-      free: companies.filter(c => c.subscription_plan === 'free').length,
-      basic: companies.filter(c => c.subscription_plan === 'basic').length,
-      premium: companies.filter(c => c.subscription_plan === 'premium').length,
-      enterprise: companies.filter(c => c.subscription_plan === 'enterprise').length,
+      free: companies.filter((c) => c.subscription_plan === "free").length,
+      basic: companies.filter((c) => c.subscription_plan === "basic").length,
+      premium: companies.filter((c) => c.subscription_plan === "premium")
+        .length,
+      enterprise: companies.filter((c) => c.subscription_plan === "enterprise")
+        .length,
     },
     totalRevenue: companies.reduce((sum, c) => sum + c.total_spent, 0),
-    averageWorkers: companies.length > 0 
-      ? companies.reduce((sum, c) => sum + c.active_workers_count, 0) / companies.length 
-      : 0,
-    newThisMonth: companies.filter(c => new Date(c.created_at) > monthAgo).length,
-    churnRate: 0 // Calculate based on cancellations
+    averageWorkers:
+      companies.length > 0
+        ? companies.reduce((sum, c) => sum + c.active_workers_count, 0) /
+          companies.length
+        : 0,
+    newThisMonth: companies.filter((c) => new Date(c.created_at) > monthAgo)
+      .length,
+    churnRate: 0, // Calculate based on cancellations
   };
 
   return stats;
@@ -409,15 +443,17 @@ export async function getCompanyStats(): Promise<CompanyStats> {
 /**
  * Get top spending companies
  */
-export async function getTopSpendingCompanies(limit: number = 10): Promise<Company[]> {
+export async function getTopSpendingCompanies(
+  limit: number = 10
+): Promise<Company[]> {
   const { data, error } = await supabase
-    .from('companies')
-    .select('*')
-    .order('total_spent', { ascending: false })
+    .from("employers")
+    .select("*")
+    .order("total_spent", { ascending: false })
     .limit(limit);
 
   if (error) {
-    console.error('Error fetching top spending companies:', error);
+    console.error("Error fetching top spending companies:", error);
     throw error;
   }
 
@@ -429,18 +465,22 @@ export async function getTopSpendingCompanies(limit: number = 10): Promise<Compa
  */
 export async function getCompaniesExpiringSoon(): Promise<Company[]> {
   const now = new Date();
-  const thirtyDaysFromNow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
+  const thirtyDaysFromNow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 30
+  );
 
   const { data, error } = await supabase
-    .from('companies')
-    .select('*')
-    .eq('subscription_status', 'active')
-    .lte('subscription_end_date', thirtyDaysFromNow.toISOString())
-    .gte('subscription_end_date', now.toISOString())
-    .order('subscription_end_date', { ascending: true });
+    .from("employers")
+    .select("*")
+    .eq("subscription_status", "active")
+    .lte("subscription_end_date", thirtyDaysFromNow.toISOString())
+    .gte("subscription_end_date", now.toISOString())
+    .order("subscription_end_date", { ascending: true });
 
   if (error) {
-    console.error('Error fetching expiring companies:', error);
+    console.error("Error fetching expiring companies:", error);
     throw error;
   }
 
@@ -455,15 +495,15 @@ export async function bulkUpdateCompanies(
   updates: Partial<Company>
 ): Promise<boolean> {
   const { error } = await supabase
-    .from('companies')
+    .from("employers")
     .update({
       ...updates,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     })
-    .in('id', ids);
+    .in("id", ids);
 
   if (error) {
-    console.error('Error bulk updating companies:', error);
+    console.error("Error bulk updating companies:", error);
     return false;
   }
 

@@ -767,3 +767,6 @@ export const NotificationsManager = () => {
     </div>
   );
 };
+
+// Export as default for lazy loading
+export default NotificationsManager;

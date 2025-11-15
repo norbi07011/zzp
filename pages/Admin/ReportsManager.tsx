@@ -705,3 +705,6 @@ export const ReportsManager = () => {
     </div>
   );
 };
+
+// Export as default for lazy loading
+export default ReportsManager;

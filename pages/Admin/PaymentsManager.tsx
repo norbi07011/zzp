@@ -1,9 +1,20 @@
 // @ts-nocheck
-import React, { useState } from 'react';
-import { usePayments } from '../../src/hooks/usePayments';
-import { CreditCard, DollarSign, TrendingUp, FileText, Search, Download, RefreshCw, Check, X, Eye } from 'lucide-react';
+import React, { useState } from "react";
+import { usePayments } from "../../src/hooks/usePayments";
+import {
+  CreditCard,
+  DollarSign,
+  TrendingUp,
+  FileText,
+  Search,
+  Download,
+  RefreshCw,
+  Check,
+  X,
+  Eye,
+} from "lucide-react";
 
-export default function PaymentsManager() {
+function PaymentsManager() {
   const {
     payments,
     stats,
@@ -21,18 +32,18 @@ export default function PaymentsManager() {
     searchPayments,
   } = usePayments();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterMethod, setFilterMethod] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterMethod, setFilterMethod] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState(null);
 
   const [formData, setFormData] = useState({
-    user_id: '',
+    user_id: "",
     amount: 0,
-    currency: 'EUR',
-    payment_method: 'card',
-    description: '',
+    currency: "EUR",
+    payment_method: "card",
+    description: "",
     metadata: {},
   });
 
@@ -49,36 +60,36 @@ export default function PaymentsManager() {
       await createPayment(formData);
       setShowAddModal(false);
       setFormData({
-        user_id: '',
+        user_id: "",
         amount: 0,
-        currency: 'EUR',
-        payment_method: 'card',
-        description: '',
+        currency: "EUR",
+        payment_method: "card",
+        description: "",
         metadata: {},
       });
     } catch (err) {
-      console.error('Error creating payment:', err);
+      console.error("Error creating payment:", err);
     }
   };
 
   const handleCompletePayment = async (id: string) => {
-    const transactionId = prompt('Podaj ID transakcji:');
+    const transactionId = prompt("Podaj ID transakcji:");
     if (transactionId) {
       try {
         await completePayment(id, transactionId);
       } catch (err) {
-        console.error('Error completing payment:', err);
+        console.error("Error completing payment:", err);
       }
     }
   };
 
   const handleRefund = async (id: string) => {
-    const reason = prompt('Powód zwrotu:');
+    const reason = prompt("Powód zwrotu:");
     if (reason) {
       try {
         await refundPayment(id, reason);
       } catch (err) {
-        console.error('Error refunding payment:', err);
+        console.error("Error refunding payment:", err);
       }
     }
   };
@@ -88,45 +99,51 @@ export default function PaymentsManager() {
       const invoice = await generateInvoice(id);
       alert(`Faktura wygenerowana: ${invoice.invoice_number}`);
     } catch (err) {
-      console.error('Error generating invoice:', err);
+      console.error("Error generating invoice:", err);
     }
   };
 
   const handleExport = async () => {
     try {
-      const data = await exportPayments();
-      const blob = new Blob([data], { type: 'text/csv' });
+      const blob = await exportPayments();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `payments-${new Date().toISOString()}.csv`;
+      a.download = `payments-export-${
+        new Date().toISOString().split("T")[0]
+      }.csv`;
+      document.body.appendChild(a);
       a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Error exporting payments:', err);
+      console.error("Error exporting payments:", err);
+      alert("Błąd eksportu płatności. Sprawdź konsolę.");
     }
   };
 
-  const filteredPayments = payments.filter(payment => {
-    if (filterStatus !== 'all' && payment.status !== filterStatus) return false;
-    if (filterMethod !== 'all' && payment.payment_method !== filterMethod) return false;
+  const filteredPayments = payments.filter((payment) => {
+    if (filterStatus !== "all" && payment.status !== filterStatus) return false;
+    if (filterMethod !== "all" && payment.payment_method !== filterMethod)
+      return false;
     return true;
   });
 
   const getStatusBadge = (status: string) => {
     const badges = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      completed: 'bg-green-100 text-green-800',
-      failed: 'bg-red-100 text-red-800',
-      refunded: 'bg-purple-100 text-purple-800',
+      pending: "bg-yellow-100 text-yellow-800",
+      completed: "bg-green-100 text-green-800",
+      failed: "bg-red-100 text-red-800",
+      refunded: "bg-purple-100 text-purple-800",
     };
-    return badges[status] || 'bg-gray-100 text-gray-800';
+    return badges[status] || "bg-gray-100 text-gray-800";
   };
 
   const getMethodIcon = (method: string) => {
     switch (method) {
-      case 'card':
+      case "card":
         return <CreditCard className="w-4 h-4" />;
-      case 'bank_transfer':
+      case "bank_transfer":
         return <DollarSign className="w-4 h-4" />;
       default:
         return <CreditCard className="w-4 h-4" />;
@@ -146,8 +163,12 @@ export default function PaymentsManager() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Zarządzanie Płatnościami</h1>
-          <p className="text-gray-600">Monitoruj wszystkie transakcje i faktury</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Zarządzanie Płatnościami
+          </h1>
+          <p className="text-gray-600">
+            Monitoruj wszystkie transakcje i faktury
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -156,7 +177,9 @@ export default function PaymentsManager() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Całkowity Przychód</p>
-                <p className="text-2xl font-bold text-gray-900">€{stats?.total_revenue?.toFixed(2) || '0.00'}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  €{stats?.total_revenue?.toFixed(2) || "0.00"}
+                </p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-600" />
             </div>
@@ -166,7 +189,9 @@ export default function PaymentsManager() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Oczekujące</p>
-                <p className="text-2xl font-bold text-yellow-600">€{stats?.pending_amount?.toFixed(2) || '0.00'}</p>
+                <p className="text-2xl font-bold text-yellow-600">
+                  €{stats?.pending_amount?.toFixed(2) || "0.00"}
+                </p>
               </div>
               <CreditCard className="w-8 h-8 text-yellow-600" />
             </div>
@@ -176,7 +201,9 @@ export default function PaymentsManager() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Zwroty</p>
-                <p className="text-2xl font-bold text-purple-600">€{stats?.refunded_amount?.toFixed(2) || '0.00'}</p>
+                <p className="text-2xl font-bold text-purple-600">
+                  €{stats?.refunded_amount?.toFixed(2) || "0.00"}
+                </p>
               </div>
               <RefreshCw className="w-8 h-8 text-purple-600" />
             </div>
@@ -186,7 +213,9 @@ export default function PaymentsManager() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Wszystkie Płatności</p>
-                <p className="text-2xl font-bold text-blue-600">{stats?.total_payments || 0}</p>
+                <p className="text-2xl font-bold text-blue-600">
+                  {stats?.total_count || 0}
+                </p>
               </div>
               <DollarSign className="w-8 h-8 text-blue-600" />
             </div>
@@ -293,7 +322,7 @@ export default function PaymentsManager() {
                   <tr key={payment.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-mono text-gray-900">
-                        {payment.transaction_id || 'Pending'}
+                        {payment.transaction_id || "Pending"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -311,16 +340,20 @@ export default function PaymentsManager() {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(payment.status)}`}>
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(
+                          payment.status
+                        )}`}
+                      >
                         {payment.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(payment.created_at).toLocaleDateString()}
+                      {new Date(payment.created_at).toLocaleDateString("pl-PL")}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        {payment.status === 'pending' && (
+                        {payment.status === "pending" && (
                           <button
                             onClick={() => handleCompletePayment(payment.id)}
                             className="text-green-600 hover:text-green-900"
@@ -329,7 +362,7 @@ export default function PaymentsManager() {
                             <Check className="w-4 h-4" />
                           </button>
                         )}
-                        {payment.status === 'completed' && (
+                        {payment.status === "completed" && (
                           <>
                             <button
                               onClick={() => handleGenerateInvoice(payment.id)}
@@ -365,8 +398,12 @@ export default function PaymentsManager() {
           {filteredPayments.length === 0 && (
             <div className="text-center py-12">
               <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">Brak płatności</h3>
-              <p className="mt-1 text-sm text-gray-500">Nie znaleziono płatności pasujących do filtrów</p>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">
+                Brak płatności
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Nie znaleziono płatności pasujących do filtrów
+              </p>
             </div>
           )}
         </div>
@@ -376,7 +413,7 @@ export default function PaymentsManager() {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-2xl w-full p-6">
               <h2 className="text-2xl font-bold mb-6">Szczegóły Płatności</h2>
-              
+
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -385,15 +422,22 @@ export default function PaymentsManager() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Transaction ID</p>
-                    <p className="font-mono text-sm">{selectedPayment.transaction_id || 'N/A'}</p>
+                    <p className="font-mono text-sm">
+                      {selectedPayment.transaction_id || "N/A"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">User ID</p>
-                    <p className="font-mono text-sm">{selectedPayment.user_id}</p>
+                    <p className="font-mono text-sm">
+                      {selectedPayment.user_id}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Kwota</p>
-                    <p className="text-lg font-bold">{selectedPayment.currency} {selectedPayment.amount.toFixed(2)}</p>
+                    <p className="text-lg font-bold">
+                      {selectedPayment.currency}{" "}
+                      {selectedPayment.amount.toFixed(2)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Metoda</p>
@@ -401,38 +445,53 @@ export default function PaymentsManager() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Status</p>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(selectedPayment.status)}`}>
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusBadge(
+                        selectedPayment.status
+                      )}`}
+                    >
                       {selectedPayment.status}
                     </span>
                   </div>
                   <div className="col-span-2">
                     <p className="text-sm text-gray-600">Opis</p>
-                    <p>{selectedPayment.description || 'Brak opisu'}</p>
+                    <p>{selectedPayment.description || "Brak opisu"}</p>
                   </div>
                   {selectedPayment.failed_reason && (
                     <div className="col-span-2">
-                      <p className="text-sm text-gray-600">Powód niepowodzenia</p>
-                      <p className="text-red-600">{selectedPayment.failed_reason}</p>
+                      <p className="text-sm text-gray-600">
+                        Powód niepowodzenia
+                      </p>
+                      <p className="text-red-600">
+                        {selectedPayment.failed_reason}
+                      </p>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-gray-600">Utworzono</p>
-                    <p>{new Date(selectedPayment.created_at).toLocaleString()}</p>
+                    <p className="text-sm text-gray-600">Data</p>
+                    <p>
+                      {new Date(selectedPayment.created_at).toLocaleString(
+                        "pl-PL"
+                      )}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Zaktualizowano</p>
-                    <p>{new Date(selectedPayment.updated_at).toLocaleString()}</p>
+                    <p>
+                      {new Date(selectedPayment.updated_at).toLocaleString()}
+                    </p>
                   </div>
                 </div>
 
-                {selectedPayment.metadata && Object.keys(selectedPayment.metadata).length > 0 && (
-                  <div>
-                    <p className="text-sm text-gray-600 mb-2">Metadata</p>
-                    <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
-                      {JSON.stringify(selectedPayment.metadata, null, 2)}
-                    </pre>
-                  </div>
-                )}
+                {selectedPayment.metadata &&
+                  Object.keys(selectedPayment.metadata).length > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-2">Metadata</p>
+                      <pre className="bg-gray-100 p-3 rounded text-xs overflow-x-auto">
+                        {JSON.stringify(selectedPayment.metadata, null, 2)}
+                      </pre>
+                    </div>
+                  )}
               </div>
 
               <div className="mt-6 flex justify-end">
@@ -450,3 +509,6 @@ export default function PaymentsManager() {
     </div>
   );
 }
+
+// Export as default for lazy loading
+export default PaymentsManager;
