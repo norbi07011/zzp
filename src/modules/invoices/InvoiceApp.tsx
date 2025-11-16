@@ -4,42 +4,44 @@
 // Main wrapper with I18n provider, routing, and layout
 // =====================================================
 
-import { useState } from 'react';
-import { I18nProvider } from './i18n';
-import { useAuth } from '../../../contexts/AuthContext';
+import { useState } from "react";
+import { I18nProvider } from "./i18n";
+import { useAuth } from "../../../contexts/AuthContext";
 
 // Pages
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import InvoiceForm from './pages/InvoiceForm';
-import Clients from './pages/Clients';
-import Products from './pages/Products';
-import Expenses from './pages/Expenses';
-import BTWAangifte from './pages/BTWAangifte';
-import Kilometers from './pages/Kilometers';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
+import Dashboard from "./pages/Dashboard";
+import Invoices from "./pages/Invoices";
+import InvoiceForm from "./pages/InvoiceForm";
+import Clients from "./pages/Clients";
+import Products from "./pages/Products";
+import Expenses from "./pages/Expenses";
+import BTWAangifte from "./pages/BTWAangifte";
+import Kilometers from "./pages/Kilometers";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 
-type Page = 
-  | 'dashboard' 
-  | 'invoices' 
-  | 'invoice-form' 
-  | 'clients' 
-  | 'products' 
-  | 'expenses' 
-  | 'btw' 
-  | 'kilometers' 
-  | 'reports' 
-  | 'settings';
+type Page =
+  | "dashboard"
+  | "invoices"
+  | "invoice-form"
+  | "clients"
+  | "products"
+  | "expenses"
+  | "btw"
+  | "kilometers"
+  | "reports"
+  | "settings";
 
 export default function InvoiceApp() {
+  console.log("🔍 InvoiceApp RENDERED - route /faktury działa!");
+
   const { user } = useAuth();
-  const [currentPage, setCurrentPage] = useState<Page>('dashboard');
+  const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   const [editInvoiceId, setEditInvoiceId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const handleNavigate = (page: string, id?: string) => {
-    if (page === 'invoice-form' && id) {
+    if (page === "invoice-form" && id) {
       setEditInvoiceId(id);
     } else {
       setEditInvoiceId(null);
@@ -49,15 +51,15 @@ export default function InvoiceApp() {
 
   // Menu items
   const menuItems = [
-    { id: 'dashboard' as Page, label: 'Dashboard', icon: '📊' },
-    { id: 'invoices' as Page, label: 'Faktury', icon: '📄' },
-    { id: 'clients' as Page, label: 'Klienci', icon: '👥' },
-    { id: 'products' as Page, label: 'Produkty', icon: '📦' },
-    { id: 'expenses' as Page, label: 'Wydatki', icon: '💳' },
-    { id: 'btw' as Page, label: 'BTW Aangifte', icon: '📊' },
-    { id: 'kilometers' as Page, label: 'Kilometrówka', icon: '🚗' },
-    { id: 'reports' as Page, label: 'Raporty', icon: '📈' },
-    { id: 'settings' as Page, label: 'Ustawienia', icon: '⚙️' },
+    { id: "dashboard" as Page, label: "Dashboard", icon: "📊" },
+    { id: "invoices" as Page, label: "Faktury", icon: "📄" },
+    { id: "clients" as Page, label: "Klienci", icon: "👥" },
+    { id: "products" as Page, label: "Produkty", icon: "📦" },
+    { id: "expenses" as Page, label: "Wydatki", icon: "💳" },
+    { id: "btw" as Page, label: "BTW Aangifte", icon: "📊" },
+    { id: "kilometers" as Page, label: "Kilometrówka", icon: "🚗" },
+    { id: "reports" as Page, label: "Raporty", icon: "📈" },
+    { id: "settings" as Page, label: "Ustawienia", icon: "⚙️" },
   ];
 
   if (!user) {
@@ -65,8 +67,12 @@ export default function InvoiceApp() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         <div className="text-center">
           <div className="text-6xl mb-4">🔒</div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Wymagane logowanie</h2>
-          <p className="text-gray-600">Zaloguj się, aby uzyskać dostęp do modułu faktur</p>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Wymagane logowanie
+          </h2>
+          <p className="text-gray-600">
+            Zaloguj się, aby uzyskać dostęp do modułu faktur
+          </p>
         </div>
       </div>
     );
@@ -76,9 +82,9 @@ export default function InvoiceApp() {
     <I18nProvider>
       <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
         {/* Sidebar */}
-        <aside 
+        <aside
           className={`${
-            isSidebarOpen ? 'w-64' : 'w-20'
+            isSidebarOpen ? "w-64" : "w-20"
           } bg-gradient-to-b from-slate-900 via-blue-900 to-indigo-900 text-white transition-all duration-300 flex flex-col shadow-2xl`}
         >
           {/* Header */}
@@ -94,7 +100,7 @@ export default function InvoiceApp() {
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="p-2 hover:bg-white/10 rounded-lg transition-colors"
               >
-                {isSidebarOpen ? '◀' : '▶'}
+                {isSidebarOpen ? "◀" : "▶"}
               </button>
             </div>
           </div>
@@ -107,8 +113,8 @@ export default function InvoiceApp() {
                 onClick={() => handleNavigate(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                   currentPage === item.id
-                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg scale-105'
-                    : 'hover:bg-white/10'
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-600 shadow-lg scale-105"
+                    : "hover:bg-white/10"
                 }`}
               >
                 <span className="text-2xl">{item.icon}</span>
@@ -132,16 +138,33 @@ export default function InvoiceApp() {
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
-          {currentPage === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
-          {currentPage === 'invoices' && <Invoices onNavigate={handleNavigate} />}
-          {currentPage === 'invoice-form' && <InvoiceForm onNavigate={handleNavigate} editInvoiceId={editInvoiceId} />}
-          {currentPage === 'clients' && <Clients onNavigate={handleNavigate} />}
-          {currentPage === 'products' && <Products onNavigate={handleNavigate} />}
-          {currentPage === 'expenses' && <Expenses onNavigate={handleNavigate} />}
-          {currentPage === 'btw' && <BTWAangifte onNavigate={handleNavigate} />}
-          {currentPage === 'kilometers' && <Kilometers onNavigate={handleNavigate} />}
-          {currentPage === 'reports' && <Reports onNavigate={handleNavigate} />}
-          {currentPage === 'settings' && <Settings onNavigate={handleNavigate} />}
+          {currentPage === "dashboard" && (
+            <Dashboard onNavigate={handleNavigate} />
+          )}
+          {currentPage === "invoices" && (
+            <Invoices onNavigate={handleNavigate} />
+          )}
+          {currentPage === "invoice-form" && (
+            <InvoiceForm
+              onNavigate={handleNavigate}
+              editInvoiceId={editInvoiceId}
+            />
+          )}
+          {currentPage === "clients" && <Clients onNavigate={handleNavigate} />}
+          {currentPage === "products" && (
+            <Products onNavigate={handleNavigate} />
+          )}
+          {currentPage === "expenses" && (
+            <Expenses onNavigate={handleNavigate} />
+          )}
+          {currentPage === "btw" && <BTWAangifte onNavigate={handleNavigate} />}
+          {currentPage === "kilometers" && (
+            <Kilometers onNavigate={handleNavigate} />
+          )}
+          {currentPage === "reports" && <Reports onNavigate={handleNavigate} />}
+          {currentPage === "settings" && (
+            <Settings onNavigate={handleNavigate} />
+          )}
         </main>
       </div>
     </I18nProvider>

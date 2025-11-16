@@ -825,6 +825,32 @@ export const AdminDashboard: React.FC = () => {
             {quickActions.map((action, idx) => (
               <QuickAction key={idx} {...action} />
             ))}
+
+            <Link
+              to="/faktury"
+              onClick={() => {
+                console.log("🧾 FAKTURY BUTTON CLICKED - Dashboard: ADMIN");
+              }}
+              className="bg-green-600 text-white rounded-lg p-6 hover:bg-green-700 transition-all shadow-lg hover:shadow-xl flex flex-col items-center justify-center gap-3"
+            >
+              <svg
+                className="w-12 h-12"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <div className="text-center">
+                <h3 className="text-lg font-bold">Faktury & BTW</h3>
+                <p className="text-sm text-green-100 mt-1">Program do faktur</p>
+              </div>
+            </Link>
           </div>
         </div>
 

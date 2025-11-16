@@ -189,7 +189,8 @@ const WorkerSubscriptionSelectionPage = lazy(
 // ❌ REMOVED: CleaningDashboard, CleaningReviewsPage, CleaningPortfolioPage - moved to archiwum
 // CleaningCompanyProfile removed - use Dashboard Settings tab instead
 
-// ❌ REMOVED: Invoice Module - moved to archiwum
+// Invoice Module (for ZZP workers) ✅ ACTIVE
+import InvoiceApp from "./src/modules/invoices/InvoiceApp";
 
 function App() {
   return (
@@ -521,7 +522,23 @@ function App() {
                         <Route index element={<CleaningCompanyDashboard />} />
                       </Route>
 
-                      {/* ❌ REMOVED: Invoice Module - moved to archiwum */}
+                      {/* Invoice Module - For ALL Users */}
+                      <Route
+                        path="/faktury"
+                        element={
+                          <ProtectedRoute
+                            requiredRole={[
+                              "worker",
+                              "employer",
+                              "admin",
+                              "accountant",
+                              "cleaning_company",
+                            ]}
+                          >
+                            <InvoiceApp />
+                          </ProtectedRoute>
+                        }
+                      />
 
                       {/* 404 */}
                       <Route path="*" element={<Navigate to="/" replace />} />

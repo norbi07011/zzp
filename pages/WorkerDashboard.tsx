@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import workerProfileService from "../services/workerProfileService";
 import type { WorkerProfileData } from "../services/workerProfileService";
@@ -1462,15 +1462,38 @@ export default function WorkerDashboard() {
               </div>
             </ContentCard>
 
-            {/* W budowie - placeholder */}
-            <ContentCard>
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                🚧 Więcej funkcji wkrótce
-              </h3>
-              <p className="text-gray-600">
-                Informacje o pracowniku, Quick Actions - w trakcie implementacji
-              </p>
-            </ContentCard>
+            {/* Faktury & BTW Button */}
+            <Link
+              to="/faktury"
+              onClick={() => {
+                console.log(
+                  "🧾 FAKTURY BUTTON CLICKED - Dashboard: WORKER (Panel Tab)"
+                );
+              }}
+              className="block bg-green-600 text-white rounded-2xl p-6 hover:bg-green-700 transition-all shadow-xl hover:shadow-2xl"
+            >
+              <div className="flex items-center gap-4">
+                <svg
+                  className="w-12 h-12 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                <div>
+                  <h3 className="text-2xl font-bold mb-1">Faktury & BTW</h3>
+                  <p className="text-green-100">
+                    Twój prywatny program do faktur
+                  </p>
+                </div>
+              </div>
+            </Link>
           </>
         )}
 
@@ -1699,7 +1722,7 @@ export default function WorkerDashboard() {
         </StatsGrid>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <ContentCard
             className="cursor-pointer hover:shadow-2xl transition-all"
             noPadding
@@ -1753,6 +1776,37 @@ export default function WorkerDashboard() {
               </p>
             </button>
           </ContentCard>
+
+          <ContentCard
+            className="cursor-pointer hover:shadow-2xl transition-all"
+            noPadding
+          >
+            <Link
+              to="/faktury"
+              onClick={() => {
+                console.log("🧾 FAKTURY BUTTON CLICKED - Dashboard: WORKER");
+              }}
+              className="block w-full p-6 bg-green-600 text-white hover:bg-green-700 transition-colors"
+            >
+              <svg
+                className="w-10 h-10 mb-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <h3 className="text-xl font-bold mb-2">Faktury & BTW</h3>
+              <p className="text-green-100 text-sm">
+                Twój prywatny program do faktur
+              </p>
+            </Link>
+          </ContentCard>
         </div>
 
         {/* Recent Activity */}
@@ -1781,6 +1835,37 @@ export default function WorkerDashboard() {
             </div>
           </div>
         </ContentCard>
+
+        {/* Faktury Button */}
+        <Link
+          to="/faktury"
+          onClick={() => {
+            console.log(
+              "🧾 FAKTURY BUTTON CLICKED - Dashboard: WORKER (Overview)"
+            );
+          }}
+          className="block bg-green-600 text-white rounded-2xl p-6 hover:bg-green-700 transition-all shadow-xl hover:shadow-2xl"
+        >
+          <div className="flex items-center gap-4">
+            <svg
+              className="w-12 h-12 flex-shrink-0"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            <div>
+              <h3 className="text-2xl font-bold mb-1">Faktury & BTW</h3>
+              <p className="text-green-100">Twój prywatny program do faktur</p>
+            </div>
+          </div>
+        </Link>
       </PageContainer>
     );
   };

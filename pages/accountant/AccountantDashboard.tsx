@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -653,6 +653,37 @@ export default function AccountantDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Faktury Button */}
+      <Link
+        to="/faktury"
+        onClick={() => {
+          console.log("🧾 FAKTURY BUTTON CLICKED - Dashboard: ACCOUNTANT");
+        }}
+        className="block bg-green-600 text-white rounded-lg shadow-xl p-6 hover:bg-green-700 transition-all hover:shadow-2xl mb-6"
+      >
+        <div className="flex items-center gap-4">
+          <svg
+            className="w-10 h-10 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <div>
+            <h3 className="text-2xl font-bold mb-1">Faktury & BTW</h3>
+            <p className="text-green-100">
+              Twój prywatny program do faktur i VAT
+            </p>
+          </div>
+        </div>
+      </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div
