@@ -7,6 +7,7 @@ import {
 } from "react";
 import { supabase } from "@/lib/supabase";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+// @ts-ignore - Database types will be regenerated after migration deployment
 import type { Database } from "@/lib/database.types";
 
 export type UserRole =
@@ -88,30 +89,82 @@ export interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Cache dla user mapping - zapobiega wielokrotnym query
+const userMappingCache = new Map<string, { user: User; timestamp: number }>();
+const CACHE_DURATION = 300000; // 5 minut (300 sekund) - zwiększone z 30s
+
 // Mapping Supabase user to app user with timeout protection
 const mapSupabaseUserToAppUser = async (
   supabaseUser: SupabaseUser
 ): Promise<User> => {
+  // DŁUGI timeout 5 minut - zapobiega false positive timeouts
   const timeoutPromise = new Promise<never>(
     (_, reject) =>
-      setTimeout(() => reject(new Error("User mapping timeout")), 30000) // 30 second timeout
+      setTimeout(() => reject(new Error("User mapping timeout")), 300000) // 5 minut
   );
 
+  console.log(
+    "[AUTH] Mapping user:",
+    supabaseUser.id,
+    "role:",
+    supabaseUser.user_metadata?.role
+  );
+
+  // Sprawdź cache
+  const cached = userMappingCache.get(supabaseUser.id);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log("[AUTH] Using cached user data");
+    return cached.user;
+  }
+
   try {
-    return await Promise.race([
+    const user = await Promise.race([
       mapUserDataWithRetry(supabaseUser),
       timeoutPromise,
     ]);
+
+    // Zapisz do cache
+    userMappingCache.set(supabaseUser.id, { user, timestamp: Date.now() });
+    console.log("[AUTH] User mapped successfully, cached");
+
+    return user;
   } catch (error) {
     console.error("⚠️ Error mapping user (using fallback):", error);
-    // Always return fallback user data to not block login
-    return {
+    console.error("⚠️ User ID:", supabaseUser.id);
+    console.error("⚠️ Cache status:", userMappingCache.has(supabaseUser.id));
+    console.error(
+      "⚠️ Error type:",
+      error instanceof Error ? error.message : typeof error
+    );
+
+    // EMERGENCY FALLBACK - sprawdź czy to admin po ID
+    const isKnownAdmin =
+      supabaseUser.id === "47f06296-a087-4d63-b052-1004e063c467";
+
+    const fallbackUser = {
       id: supabaseUser.id,
       email: supabaseUser.email || "",
-      name: supabaseUser.user_metadata?.fullName || "User",
-      fullName: supabaseUser.user_metadata?.fullName || "User",
-      role: (supabaseUser.user_metadata?.role as UserRole) || "worker",
+      name:
+        supabaseUser.user_metadata?.fullName ||
+        (isKnownAdmin ? "Administrator" : "User"),
+      fullName:
+        supabaseUser.user_metadata?.fullName ||
+        (isKnownAdmin ? "Administrator" : "User"),
+      role:
+        (isKnownAdmin
+          ? "admin"
+          : (supabaseUser.user_metadata?.role as UserRole)) || "worker",
     };
+
+    console.warn("⚡ USING FALLBACK USER:", fallbackUser);
+
+    // Cache fallback żeby nie powtarzać błędu
+    userMappingCache.set(supabaseUser.id, {
+      user: fallbackUser,
+      timestamp: Date.now(),
+    });
+
+    return fallbackUser;
   }
 };
 
@@ -147,7 +200,15 @@ const mapUserDataWithRetry = async (
     let certificateId: string | undefined;
     let subscription: Subscription | undefined;
 
-    if (typedProfile.role === "employer") {
+    // ✅ CRITICAL FIX: Only fetch role-specific data if role matches
+    // WHY: Prevents timeout/fallback when admin has duplicate entries in workers/employers tables
+
+    if (typedProfile.role === "admin") {
+      // Admin role - no additional data needed, skip all table lookups
+      console.log(
+        "[AUTH] Admin user detected - skipping role-specific data fetch"
+      );
+    } else if (typedProfile.role === "employer") {
       // WHY: maybeSingle instead of single - employer record may not exist yet (new registration)
       const { data: employer } = await supabase
         .from("employers")
@@ -180,9 +241,7 @@ const mapUserDataWithRetry = async (
       } else {
         console.log("[SUBS-GUARD] No active subscription for employer");
       }
-    }
-
-    if (typedProfile.role === "accountant") {
+    } else if (typedProfile.role === "accountant") {
       // Fetch accountant data
       const { data: accountant } = await supabase
         .from("accountants" as any)
@@ -194,9 +253,7 @@ const mapUserDataWithRetry = async (
         const accountantData = accountant as any;
         companyName = accountantData?.company_name || accountantData?.full_name;
       }
-    }
-
-    if (typedProfile.role === "cleaning_company") {
+    } else if (typedProfile.role === "cleaning_company") {
       // Fetch cleaning company data
       const { data: cleaningCompany } = await supabase
         .from("cleaning_companies" as any)
@@ -208,9 +265,7 @@ const mapUserDataWithRetry = async (
         const cleaningData = cleaningCompany as any;
         companyName = cleaningData?.company_name;
       }
-    }
-
-    if (typedProfile.role === "worker") {
+    } else if (typedProfile.role === "worker") {
       try {
         const { data: certificates } = await supabase
           .from("certificates")
@@ -287,7 +342,7 @@ const mapUserDataWithRetry = async (
       }
     }
 
-    return {
+    const finalUser = {
       id: typedProfile.id,
       email: typedProfile.email,
       name: typedProfile.full_name || "User",
@@ -298,6 +353,14 @@ const mapUserDataWithRetry = async (
       subscription,
       created_at: typedProfile.created_at || undefined,
     };
+
+    console.log("[AUTH] User mapped successfully:", {
+      email: finalUser.email,
+      role: finalUser.role,
+      has_subscription: !!finalUser.subscription,
+    });
+
+    return finalUser;
   } catch (error) {
     console.error("Error mapping user:", error);
     // Fallback to basic user data

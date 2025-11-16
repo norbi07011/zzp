@@ -221,6 +221,7 @@ export const AdminDashboard: React.FC = () => {
     totalApplications: 0,
     approvedApplications: 0,
     weeklyTestSlots: 0,
+    generatedCertificates: 0, // NEW: Certyfikaty wygenerowane przez admina
   });
   const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [systemStatus, setSystemStatus] = useState<any[]>([]);
@@ -282,6 +283,7 @@ export const AdminDashboard: React.FC = () => {
         { count: totalAppsCount },
         { count: approvedAppsCount },
         { count: weeklyTestSlotsCount },
+        { count: generatedCertsCount }, // NEW: Total generated certificates
       ] = await Promise.all([
         workersQuery,
         employersQuery,
@@ -328,6 +330,10 @@ export const AdminDashboard: React.FC = () => {
           .from("test_appointments")
           .select("*", { count: "exact", head: true })
           .gte("test_date", weekStart.toISOString()),
+        // TASK 5.8: generatedCertificates - generated_certificates total count
+        supabase
+          .from("generated_certificates")
+          .select("*", { count: "exact", head: true }),
       ]);
 
       // Calculate monthlyRevenue (MRR)
@@ -355,6 +361,7 @@ export const AdminDashboard: React.FC = () => {
         totalApplications: totalAppsCount || 0,
         approvedApplications: approvedAppsCount || 0,
         weeklyTestSlots: weeklyTestSlotsCount || 0,
+        generatedCertificates: generatedCertsCount || 0, // NEW: Total admin-generated certificates
       });
 
       // Fetch recent activities (notifications/messages)
@@ -525,9 +532,9 @@ export const AdminDashboard: React.FC = () => {
       },
     },
     {
-      title: "Certyfikaty Premium ZZP",
+      title: "Aplikacje o Certyfikat ZZP",
       description:
-        "Zarządzaj aplikacjami, zatwierdzaj certyfikaty i przeprowadzaj testy",
+        "Zatwierdzaj wnioski pracowników, planuj testy i wydawaj certyfikaty Premium",
       path: "/admin/certificate-approval",
       icon: "🏆",
       color: "premium" as const,
@@ -551,8 +558,9 @@ export const AdminDashboard: React.FC = () => {
       },
     },
     {
-      title: "Zarządzanie Certyfikatami",
-      description: "Generuj, wysyłaj i zarządzaj certyfikatami doświadczenia",
+      title: "Certyfikaty Wrzucone (Uploads)",
+      description:
+        "Weryfikuj certyfikaty przesłane przez pracowników (OCR, expiry tracking)",
       path: "/admin/certificates",
       icon: "📜",
       color: "cyber" as const,
@@ -560,6 +568,19 @@ export const AdminDashboard: React.FC = () => {
         label: "Total",
         value: "0",
         trend: `${stats.pendingCertificates} pending`,
+      },
+    },
+    {
+      title: "Generator Certyfikatów (NEW)",
+      description:
+        "Generuj profesjonalne certyfikaty PDF dla pracowników z QR weryfikacją",
+      path: "/admin/certificates/generate",
+      icon: "🎖️",
+      color: "premium" as const,
+      stats: {
+        label: "Generated",
+        value: (stats.generatedCertificates || 0).toString(),
+        trend: "A4 Landscape PDF",
       },
     },
     {

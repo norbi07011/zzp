@@ -8,12 +8,12 @@
 
 ## 📋 SPIS TREŚCI
 
-1. [JSON Design Prompt - Ultra Szczegółowy](#json-design-prompt)
-2. [Wymagane Elementy Certyfikatu](#wymagane-elementy)
-3. [Opcje Techniczne Implementacji (BEZ AI)](#opcje-techniczne)
-4. [Rekomendowana Architektura](#rekomendowana-architektura)
-5. [Database Schema](#database-schema)
-6. [UI/UX Admin Panel](#admin-panel-ui)
+1. [JSON Design Prompt - Ultra Szczegółowy](#-json-design-prompt---ultra-szczegółowy)
+2. [Wymagane Elementy Certyfikatu](#-wymagane-elementy-certyfikatu)
+3. [Opcje Techniczne Implementacji (BEZ AI)](#️-opcje-techniczne-implementacji-bez-ai-models)
+4. [Rekomendowana Architektura](#-rekomendowana-architektura)
+5. [Database Schema](#-database-schema)
+6. [UI/UX Admin Panel](#-admin-panel-uiux)
 
 ---
 

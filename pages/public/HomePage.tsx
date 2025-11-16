@@ -44,8 +44,10 @@ export const HomePage: React.FC = () => {
                     textShadow: "2px 2px 4px rgba(0,0,0,0.3)",
                   }}
                 >
-                  <span className="block text-white drop-shadow-lg">ZZP Werkplaats</span>
-                  <span 
+                  <span className="block text-white drop-shadow-lg">
+                    ZZP Werkplaats
+                  </span>
+                  <span
                     className="block mt-2 text-4xl lg:text-6xl bg-gradient-to-r from-cyan-400 via-blue-500 to-violet-600 bg-clip-text text-transparent font-black"
                     style={{
                       textShadow: "none",

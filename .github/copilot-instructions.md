@@ -92,6 +92,14 @@ Zaplanuj rozbudowę karty na 200% (stan docelowy + przyszłe rozszerzenia).
 
 Wylistuj minimalne MVP tej karty, żeby była używalna i kompatybilna w przyszłości z systemem.
 
+Po każdej swojej wykonanej pracy w naszej konwersaci i dodawaj sekcję: 'RAPORT KOŃCOWY'.  
+W raporcie wyjaśniaj jasno i prosto:
+1) co zrobiłeś,  
+2) co jest teraz OK,  
+3) co musimy poprawić,  
+4) jakie są kolejne kroki i w jakiej kolejności.  
+Zero tłumaczenia o liniach kodu — mów normalnie, ludzkim językiem.
+
 ---
 
 ## 📋 ETAP 1: WERYFIKACJA PO KODOWANIU

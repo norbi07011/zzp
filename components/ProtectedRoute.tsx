@@ -68,7 +68,7 @@ export const ProtectedRoute = ({
       case "worker":
         return <Navigate to="/worker" replace />;
       case "cleaning_company":
-        return <Navigate to="/cleaning/dashboard" replace />;
+        return <Navigate to="/cleaning-company" replace />;
       case "accountant":
         return <Navigate to="/accountant/dashboard" replace />;
       default:

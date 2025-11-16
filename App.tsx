@@ -25,6 +25,7 @@ import { RegisterAccountantPage } from "./pages/public/RegisterAccountantPage";
 import { RegisterCleaningPage } from "./pages/public/RegisterCleaningPage";
 import { LegalPage } from "./pages/public/LegalPage";
 import SplineTestPage from "./pages/public/SplineTestPage";
+import VerifyCertificatePage from "./pages/public/VerifyCertificatePage";
 
 // Accountant pages
 import AccountantRegistration from "./pages/AccountantRegistration";
@@ -34,6 +35,7 @@ import AccountantSearchPage from "./pages/public/AccountantSearchPage";
 import EmployerSearchPage from "./pages/public/EmployerSearchPage";
 import EmployerPublicProfilePage from "./pages/public/EmployerPublicProfilePage";
 import WorkerPublicProfilePage from "./pages/public/WorkerPublicProfilePage";
+import CleaningCompanyPublicProfilePage from "./pages/public/CleaningCompanyPublicProfilePage";
 import FeedPage from "./pages/FeedPage_PREMIUM"; // 🚀 ULTRA-PREMIUM FEED 2025
 import TeamDashboard from "./components/TeamDashboard";
 
@@ -64,6 +66,12 @@ const TestScheduler = lazy(() => import("./pages/Admin/TestSchedulerPageNew"));
 const CertificatesManager = lazy(
   () => import("./pages/Admin/CertificatesManager")
 );
+const CertificateGenerator = lazy(
+  () => import("./pages/Admin/CertificateGenerator")
+);
+const GeneratedCertificatesList = lazy(
+  () => import("./pages/Admin/GeneratedCertificatesList")
+);
 const SettingsPanel = lazy(() => import("./pages/Admin/SettingsPanel"));
 const PaymentsManager = lazy(() => import("./pages/Admin/PaymentsManager"));
 const SubscriptionsManager = lazy(
@@ -74,6 +82,11 @@ const AccountantsManager = lazy(
 );
 const CleaningCompaniesManager = lazy(
   () => import("./pages/Admin/CleaningCompaniesManager")
+);
+const CleaningCompanyDashboard = lazy(() =>
+  import("./pages/CleaningCompany/CleaningCompanyDashboard").then((m) => ({
+    default: m.default,
+  }))
 );
 const NotificationsManager = lazy(
   () => import("./pages/Admin/NotificationsManager")
@@ -147,7 +160,9 @@ const WorkerSearch = lazy(() =>
     default: m.WorkerSearch,
   }))
 );
-// ❌ REMOVED: CleaningCompanySearch - moved to archiwum/smieci
+const CleaningCompanySearch = lazy(
+  () => import("./pages/employer/CleaningCompanySearch")
+);
 // ❌ REMOVED: CleaningCompanyPublicProfile - moved to archiwum/smieci
 // ❌ REMOVED: AccountantPublicProfile - moved to archiwum/smieci
 const SubscriptionManager = lazy(() =>
@@ -227,6 +242,11 @@ function App() {
                           path="/register/cleaning"
                           element={<RegisterCleaningPage />}
                         />
+                        {/* Certificate Verification - Public */}
+                        <Route
+                          path="/verify/:certificateId"
+                          element={<VerifyCertificatePage />}
+                        />
                         {/* Public profile pages - beautiful full panels */}
                         <Route
                           path="/employer/profile/:id"
@@ -235,6 +255,14 @@ function App() {
                         <Route
                           path="/worker/profile/:id"
                           element={<WorkerPublicProfilePage />}
+                        />
+                        <Route
+                          path="/accountant/profile/:id"
+                          element={<AccountantProfilePage />}
+                        />
+                        <Route
+                          path="/public/cleaning-company/:id"
+                          element={<CleaningCompanyPublicProfilePage />}
                         />
                         {/* Legacy routes - redirect to new structure */}
                         <Route
@@ -299,6 +327,14 @@ function App() {
                             </ProtectedRoute>
                           }
                         />
+                        <Route
+                          path="/cleaning-companies"
+                          element={
+                            <ProtectedRoute>
+                              <CleaningCompanySearch />
+                            </ProtectedRoute>
+                          }
+                        />
                       </Route>
 
                       {/* Accountant Routes */}
@@ -353,7 +389,10 @@ function App() {
 
                         {/* ✅ MANAGEMENT PANELS */}
                         <Route path="workers" element={<WorkersManager />} />
-                        <Route path="employers" element={<EmployersManager />} />
+                        <Route
+                          path="employers"
+                          element={<EmployersManager />}
+                        />
                         <Route
                           path="accountants"
                           element={<AccountantsManager />}
@@ -376,6 +415,14 @@ function App() {
                         <Route
                           path="certificates"
                           element={<CertificatesManager />}
+                        />
+                        <Route
+                          path="certificates/generate"
+                          element={<CertificateGenerator />}
+                        />
+                        <Route
+                          path="certificates/generated"
+                          element={<GeneratedCertificatesList />}
                         />
                         {/* ❌ REMOVED ENTERPRISE ROUTES: performance, performance-optimization, scalability-optimization, search, api-automation, security-compliance */}
                         <Route
@@ -462,7 +509,17 @@ function App() {
                         />
                       </Route>
 
-                      {/* ❌ REMOVED: Cleaning Company Routes - moved to archiwum */}
+                      {/* Cleaning Company routes (DEDICATED DASHBOARD) */}
+                      <Route
+                        path="/cleaning-company"
+                        element={
+                          <ProtectedRoute requiredRole="cleaning_company">
+                            <AuthenticatedLayout />
+                          </ProtectedRoute>
+                        }
+                      >
+                        <Route index element={<CleaningCompanyDashboard />} />
+                      </Route>
 
                       {/* ❌ REMOVED: Invoice Module - moved to archiwum */}
 

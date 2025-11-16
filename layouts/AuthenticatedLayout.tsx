@@ -61,8 +61,8 @@ export const AuthenticatedLayout = () => {
         ];
       case "cleaning_company":
         return [
+          { to: "/worker", label: "🏠 Panel" },
           { to: "/feed", label: "Tablica" },
-          { to: "/cleaning/dashboard", label: "🏠 Panel" },
           { to: "/team", label: "👥 Drużyna" },
           { to: "/accountants", label: "Znajdź Księgowego" },
           { to: "/employers", label: "Znajdź Pracodawcę" },

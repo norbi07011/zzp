@@ -166,18 +166,33 @@ export async function getWorkerProfile(
 
     console.log("✅ Profile fetched:", profile.email);
 
-    // Get worker data
+    // ✅ FIX: Check user role and fetch from correct table
+    const userRole = profile.role;
+    const tableName =
+      userRole === "cleaning_company" ? "cleaning_companies" : "workers";
+
+    console.log(`📊 Fetching from table: ${tableName} (role: ${userRole})`);
+
+    // Get worker/cleaning_company data from appropriate table
     const { data: worker, error: workerError } = await supabase
-      .from("workers")
+      .from(tableName)
       .select("*")
       .eq("profile_id", userId)
       .single();
 
     if (workerError) {
       console.warn(
-        "⚠️ Worker record not found, creating default...",
+        `⚠️ ${tableName} record not found, creating default...`,
         workerError.message
       );
+
+      // ✅ FIX: Create record in correct table based on role
+      if (userRole === "cleaning_company") {
+        console.error(
+          "❌ Cleaning company record should exist from registration!"
+        );
+        return null;
+      }
 
       // If worker doesn't exist, create one with defaults
       const newWorker = await createWorkerRecord(userId, profile);
@@ -194,15 +209,26 @@ export async function getWorkerProfile(
       };
     }
 
-    console.log("✅ Worker data fetched successfully");
+    console.log(`✅ ${tableName} data fetched successfully`);
 
-    // Merge data - worker fields override profile fields EXCEPT avatar_url
-    // Use worker.avatar_url if it exists, otherwise fall back to profile.avatar_url
-    const mergedData = {
+    // ✅ FIX: Handle cleaning_company specialization (array → string)
+    let mergedData: any = {
       ...profile,
       ...worker,
       avatar_url: worker.avatar_url || profile.avatar_url || null,
     };
+
+    // Convert cleaning_company array specialization to string for UI compatibility
+    if (
+      userRole === "cleaning_company" &&
+      Array.isArray(worker.specialization)
+    ) {
+      mergedData.specialization = worker.specialization.join(", ");
+      console.log(
+        "✅ Converted specialization array to string:",
+        mergedData.specialization
+      );
+    }
 
     return mergedData;
   } catch (error) {

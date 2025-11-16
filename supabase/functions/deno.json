@@ -2,7 +2,8 @@
   "compilerOptions": {
     "lib": ["deno.window"],
     "strict": true,
-    "noImplicitAny": true
+    "noImplicitAny": true,
+    "allowJs": true
   },
   "lint": {
     "files": {
@@ -13,5 +14,6 @@
     "files": {
       "exclude": ["node_modules"]
     }
-  }
+  },
+  "importMap": "./import_map.json"
 }

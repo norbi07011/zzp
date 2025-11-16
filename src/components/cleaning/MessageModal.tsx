@@ -56,7 +56,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({
 
   const handleSendReply = async () => {
     if (!replyContent.trim()) {
-      alert("Wpisz treść odpowiedzi");
+      console.warn("⚠️ Reply content is empty");
       return;
     }
 
@@ -65,10 +65,9 @@ export const MessageModal: React.FC<MessageModalProps> = ({
       await onReply(message.id, replyContent);
       setReplyContent("");
       setShowReplyForm(false);
-      alert("✅ Odpowiedź wysłana!");
+      console.log("✅ Reply sent successfully");
     } catch (err) {
-      console.error("Error sending reply:", err);
-      alert("❌ Nie udało się wysłać odpowiedzi");
+      console.error("❌ Error sending reply:", err);
     } finally {
       setSending(false);
     }

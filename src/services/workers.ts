@@ -15,12 +15,14 @@ export interface WorkerWithProfile extends Worker {
 }
 
 /**
- * Fetch all workers with their profiles
+ * Fetch all workers with their profiles (WORKERS ONLY - no cleaning companies)
+ * ✅ FIXED 2025-01-16: Removed cleaning_companies UNION (caused duplicates)
+ * 📦 Backup: archiwum/smieci/cleaning-companies-migration-2025-01-16/
  */
 export async function fetchWorkers(): Promise<WorkerWithProfile[]> {
-  console.log("🔍 DEBUG: Fetching workers...");
+  console.log("🔍 Fetching workers (without cleaning companies)...");
 
-  const { data, error } = await supabase
+  const { data: workersData, error: workersError } = await supabase
     .from("workers")
     .select(
       `
@@ -36,19 +38,13 @@ export async function fetchWorkers(): Promise<WorkerWithProfile[]> {
     )
     .order("created_at", { ascending: false });
 
-  console.log("📊 DEBUG: Supabase response:", {
-    dataCount: data?.length || 0,
-    error: error?.message || null,
-    firstWorker: data?.[0] || null,
-    profilePresent: data?.[0]?.profile !== undefined,
-  });
-
-  if (error) {
-    console.error("❌ Error fetching workers:", error);
-    throw error;
+  if (workersError) {
+    console.error("❌ Error fetching workers:", workersError);
+    throw workersError;
   }
 
-  return data as WorkerWithProfile[];
+  console.log("📊 Loaded workers:", workersData?.length || 0);
+  return (workersData || []) as WorkerWithProfile[];
 }
 
 /**
